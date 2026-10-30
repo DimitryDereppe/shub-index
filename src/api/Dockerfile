@@ -14,5 +14,9 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 
+# l'image node fournit un utilisateur "node" sans privilèges : en cas de faille dans l'API,
+# l'attaquant n'est pas root dans le conteneur (l'API n'écrit rien sur le disque)
+USER node
+
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

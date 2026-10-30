@@ -1,5 +1,6 @@
 // Routes d'authentification (cookies httpOnly + JWT) : publiques sauf logout et me.
 import { Router } from "express";
+import { authRateLimiter } from "../middlewares/rate-limit.middleware.ts";
 import * as authController from "../controllers/auth.controller.ts";
 import { isConnected } from "../middlewares/access-control.middleware.ts";
 
@@ -33,7 +34,7 @@ export const router = Router();
  *       "400": { $ref: "#/components/responses/BadRequest" }
  *       "409": { $ref: "#/components/responses/Conflict" }
  */
-router.post("/auth/register", authController.register);
+router.post("/auth/register", authRateLimiter, authController.register);
 
 /**
  * @openapi
@@ -56,7 +57,7 @@ router.post("/auth/register", authController.register);
  *       "400": { $ref: "#/components/responses/BadRequest" }
  *       "401": { $ref: "#/components/responses/Unauthorized" }
  */
-router.post("/auth/login", authController.login);
+router.post("/auth/login", authRateLimiter, authController.login);
 
 /**
  * @openapi

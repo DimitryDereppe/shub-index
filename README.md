@@ -131,7 +131,7 @@ classifications des films déjà importés.
 ```bash
 cd src/api
 npm test            # 46 tests unitaires : parseur de noms, réseau local, playlist, TMDB
-npm run test:spec   # 35 tests d'intégration (Docker requis)
+npm run test:spec   # 45 tests d'intégration (Docker requis)
 ```
 
 - Les tests **d'intégration** (`src/**/*.spec.test.ts`) démarrent une base
@@ -139,7 +139,7 @@ npm run test:spec   # 35 tests d'intégration (Docker requis)
   comme le ferait le navigateur. La base est vidée avant chaque test.
 - Les fichiers `tests/*.http` (un par ressource) se lancent avec
   [httpyac](https://httpyac.github.io/) ou l'extension REST Client.
-- Documentation interactive de l'API (Swagger) : `/api/docs`.
+- Documentation interactive de l'API (Swagger) : `/api/docs` (connexion requise).
 
 ## Scripts
 
@@ -187,12 +187,17 @@ shub-index/
 - Cookies `httpOnly; Secure; SameSite=Strict` ; refresh token en rotation
   avec détection de réutilisation ; changer son mot de passe ferme toutes les sessions.
 - Mots de passe Argon2 ; message **et durée** de réponse identiques pour un
-  email inconnu ou un mauvais mot de passe.
+  email inconnu ou un mauvais mot de passe ; **10 mots de passe faux** par IP
+  et par 15 min au maximum (`429`), réglable avec `AUTH_RATE_LIMIT`.
+- Le compte est relu en base à chaque requête : un compte supprimé ou un
+  admin rétrogradé perd ses droits **immédiatement**, sans attendre
+  l'expiration de son jeton (1 h). Emails normalisés en minuscules.
 - Rôles `member` / `admin` ; les routes « mon compte » lisent l'utilisateur
   dans le jeton, jamais dans l'URL.
 - Lecture VLC limitée au réseau local, sans faire confiance à un
   `X-Forwarded-For` forgé ; partage monté en lecture seule ; CSP stricte.
-- Secrets (`JWT_SECRET`, `TMDB_TOKEN`) uniquement dans `.env`, jamais commités.
+- Secrets (`JWT_SECRET`, `TMDB_TOKEN`) uniquement dans `.env`, jamais commités ;
+  l'API refuse de démarrer sans `JWT_SECRET`. Conteneur de l'API sans root.
 
 ## Crédits
 

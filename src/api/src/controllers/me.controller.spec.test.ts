@@ -39,9 +39,9 @@ describe("me.controller", () => {
       assert.strictEqual(response.status, 400, JSON.stringify(response.data));
     });
 
-    it("should respond 401 when changing email with a wrong password", async () => {
+    it("should respond 403 when changing email with a wrong password", async () => {
       const response = await bobRequester.patch("/me", { email: "robert@oclock.io", currentPassword: "Mauvais!123" });
-      assert.strictEqual(response.status, 401, JSON.stringify(response.data));
+      assert.strictEqual(response.status, 403, JSON.stringify(response.data));
     });
 
     it("should change email with the right password", async () => {
@@ -88,13 +88,13 @@ describe("me.controller", () => {
       assert.strictEqual(newLogin.status, 200, JSON.stringify(newLogin.data));
     });
 
-    it("should respond 401 with a wrong current password", async () => {
+    it("should respond 403 with a wrong current password", async () => {
       const response = await bobRequester.patch("/me/password", {
         currentPassword: "Mauvais!123",
         newPassword: NEW_PASSWORD,
         confirm: NEW_PASSWORD,
       });
-      assert.strictEqual(response.status, 401, JSON.stringify(response.data));
+      assert.strictEqual(response.status, 403, JSON.stringify(response.data));
     });
 
     it("should respond 400 when confirmation does not match", async () => {
@@ -118,10 +118,10 @@ describe("me.controller", () => {
 
   // =====================================================================
   describe("[DELETE] /me", () => {
-    it("should respond 401 with a wrong password and keep the account", async () => {
+    it("should respond 403 with a wrong password and keep the account", async () => {
       const response = await bobRequester.delete("/me", { data: { password: "Mauvais!123" } });
 
-      assert.strictEqual(response.status, 401, JSON.stringify(response.data));
+      assert.strictEqual(response.status, 403, JSON.stringify(response.data));
       const { rowCount } = await pool.query(`SELECT 1 FROM "user" WHERE id = $1`, [libTests.BOB.id]);
       assert.strictEqual(rowCount, 1);
     });

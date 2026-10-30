@@ -7,6 +7,7 @@ import { AuthenticatedRequest } from "../@types/express.js";
 import { ForbiddenError, UnauthorizedError } from "../lib/errors.ts";
 import { isLocalRequest } from "../lib/network.ts";
 import * as libTokens from "../lib/tokens.ts";
+import usersDataMapper from "../models/users.datamapper.ts";
 
 
 // --------------------------------
@@ -30,7 +31,8 @@ export async function isConnected(req: AuthenticatedRequest, res: Response, next
 
   // est-ce que l'accessToken est un token JWT valide ?
   // si le token est invalide, verify lance une erreur attrapée par le global-error-handler
-  const payload = jwt.verify(accessToken, config.jwtSecret) as JwtPayload;
+  // algorithms : on n'accepte que l'algorithme avec lequel on signe (HS256), rien d'autre
+  const payload = jwt.verify(accessToken, config.jwtSecret, { algorithms: ["HS256"] }) as JwtPayload;
 
   // dans payload j'ai un objet JS avec des "trucs" dedans
   // je dois vérifier si paylaod contient bien userId et userRole
@@ -48,12 +50,17 @@ export async function isConnected(req: AuthenticatedRequest, res: Response, next
     throw new UnauthorizedError("Role invalide");
   }
 
-  // je suis arrivé ici : accessToken est valide
-  // aucune erreur de lancée --> utilisateur a founi un token valide --> utilisateur connecté
-  // userId et userRole sont bien présents dans la paylaod
-  // injecter userId et userRole dans la requete
-  req.userId = userId;
-  req.userRole = userRole;
+  // le jeton est valide... mais il a pu être émis AVANT une suppression de compte ou un
+  // changement de rôle (il vit 1 h). On relit donc le compte en base : un compte supprimé
+  // perd l'accès tout de suite, un admin rétrogradé perd ses droits tout de suite.
+  const user = await usersDataMapper.findById(userId);
+  if (!user) {
+    throw new UnauthorizedError("Compte introuvable");
+  }
+
+  // injecter userId et le rôle ACTUEL (celui de la base, pas celui du jeton) dans la requête
+  req.userId = user.id;
+  req.userRole = user.role;
 
   next();
 }

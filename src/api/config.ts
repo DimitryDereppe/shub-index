@@ -21,7 +21,10 @@ export const config = {
     process.env.DATABASE_URL ??
     "postgresql://postgres:randompassword@localhost:5432/shubindex",
   jwtSecret: process.env.JWT_SECRET ?? "",
-  allowedOrigins: process.env.ALLOWED_ORIGINS ?? "*",
+  // vide = aucune autre origine autorisée (client et API sont sur la même origine) ; jamais "*" par défaut
+  allowedOrigins: process.env.ALLOWED_ORIGINS ?? "",
+  // tentatives ÉCHOUÉES autorisées par IP et par 15 min sur les routes de mot de passe (force brute)
+  authRateLimit: parseInt(process.env.AUTH_RATE_LIMIT ?? "10", 10),
 
   // ---- reverse proxy ----
   // valeur passée à app.set("trust proxy") : adresse/plage du SEUL proxy de confiance (Caddy, Nginx…).

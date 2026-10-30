@@ -7,10 +7,11 @@ import argon2 from "argon2";
 import type { Response } from "express";
 import z from "zod";
 import type { AuthenticatedRequest } from "../@types/express.js";
-import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from "../lib/errors.ts";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../lib/errors.ts";
 import { Role } from "../lib/roles.ts";
 import * as libTokens from "../lib/tokens.ts";
 import { isValidPassword } from "../lib/validators.ts";
+import { emailSchema, personNameSchema } from "../lib/zod-helpers.ts";
 import favoritesDataMapper, { MAX_FAVORITES } from "../models/favorites.datamapper.ts";
 import moviesDataMapper from "../models/movies.datamapper.ts";
 import { UNIQUE_VIOLATION } from "../models/scans.datamapper.ts";
@@ -29,7 +30,10 @@ const movieIdParamSchema = z.object({ movieId: z.coerce.number().int().positive(
 async function checkCurrentPassword(userId: number, password: string): Promise<void> {
   const hash = await usersDataMapper.findPasswordById(userId);
   if (!hash || !(await argon2.verify(hash, password))) {
-    throw new UnauthorizedError("Mot de passe actuel incorrect");
+    // 403 et pas 401 : l'utilisateur EST bien connecté. Un 401 ferait croire au client que
+    // son jeton a expiré : il renouvellerait les jetons puis rejouerait la requête
+    // (2 vérifications Argon2 et 2 échecs comptés par la limitation au lieu d'un).
+    throw new ForbiddenError("Mot de passe actuel incorrect");
   }
 }
 
@@ -38,9 +42,9 @@ async function checkCurrentPassword(userId: number, password: string): Promise<v
 // --------------------------------
 const updateProfileSchema = z
   .object({
-    firstname: z.string().trim().min(1).max(128).optional(),
-    lastname: z.string().trim().min(1).max(128).optional(),
-    email: z.email().max(128).optional(),
+    firstname: personNameSchema.optional(),
+    lastname: personNameSchema.optional(),
+    email: emailSchema.optional(),
     currentPassword: z.string().optional(), // obligatoire seulement pour changer d'email
   })
   .strict() // un champ inconnu (role, password…) est refusé : pas d'auto-promotion admin

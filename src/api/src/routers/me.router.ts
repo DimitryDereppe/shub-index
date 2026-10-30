@@ -1,6 +1,7 @@
 // Routes « Mon compte » : profil, mot de passe, suppression, historique, favoris (tout membre connecté).
 import { Router } from "express";
 import * as meController from "../controllers/me.controller.ts";
+import { authRateLimiter } from "../middlewares/rate-limit.middleware.ts";
 
 export const router = Router();
 
@@ -33,6 +34,7 @@ export const router = Router();
  *             schema: { $ref: "#/components/schemas/User" }
  *       "400": { $ref: "#/components/responses/BadRequest" }
  *       "401": { $ref: "#/components/responses/Unauthorized" }
+ *       "403": { description: Mot de passe actuel incorrect (changement d'email). }
  *       "409": { $ref: "#/components/responses/Conflict" }
  *   delete:
  *     tags: [Mon compte]
@@ -49,10 +51,12 @@ export const router = Router();
  *       "204": { description: Compte supprimé, cookies effacés. }
  *       "400": { $ref: "#/components/responses/BadRequest" }
  *       "401": { $ref: "#/components/responses/Unauthorized" }
+ *       "403": { description: Mot de passe incorrect. }
+ *       "429": { description: Trop de mots de passe faux (15 min). }
  *       "409": { $ref: "#/components/responses/Conflict" }
  */
 router.patch("/me", meController.updateProfile);
-router.delete("/me", meController.deleteAccount);
+router.delete("/me", authRateLimiter, meController.deleteAccount); // demande le mot de passe
 
 /**
  * @openapi
@@ -78,8 +82,10 @@ router.delete("/me", meController.deleteAccount);
  *       "204": { description: Mot de passe changé, cookies effacés. }
  *       "400": { $ref: "#/components/responses/BadRequest" }
  *       "401": { $ref: "#/components/responses/Unauthorized" }
+ *       "403": { description: Mot de passe actuel incorrect. }
+ *       "429": { description: Trop de mots de passe faux (15 min). }
  */
-router.patch("/me/password", meController.updatePassword);
+router.patch("/me/password", authRateLimiter, meController.updatePassword);
 
 /**
  * @openapi

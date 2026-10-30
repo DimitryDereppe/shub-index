@@ -37,7 +37,8 @@ const usersDataMapper = {
   // inclut le mot de passe hashé : réservé à la vérification interne du login (auth.controller.ts)
   async findByEmail(email: string): Promise<UserWithPasswordRow | null> {
     const result = await pool.query(
-      `SELECT ${PUBLIC_COLUMNS}, password FROM "user" WHERE email = $1`,
+      // lower() des deux côtés : les comptes créés avant la normalisation (2026-10-31) restent trouvables
+      `SELECT ${PUBLIC_COLUMNS}, password FROM "user" WHERE lower(email) = lower($1)`,
       [email]
     );
     return result.rows[0] ?? null;

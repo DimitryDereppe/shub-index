@@ -24,15 +24,21 @@ viser le compte d'un autre.
 
 | Verbe | Chemin | Request | Response | Description |
 | --- | --- | --- | --- | --- |
-| PATCH | `/me` | `{firstname?, lastname?, email?, currentPassword?}` | `200` user · `400` · `401` · `409` email pris | profil ; `currentPassword` requis pour changer d'email ; champ inconnu (`role`…) → `400` |
-| PATCH | `/me/password` | `{currentPassword, newPassword, confirm}` | `204`, cookies vidés · `400` · `401` | toutes les sessions sont révoquées : reconnexion obligatoire |
-| DELETE | `/me` | `{password}` | `204`, cookies vidés · `401` · `409` dernier admin | historique et favoris partent avec (CASCADE) |
+| PATCH | `/me` | `{firstname?, lastname?, email?, currentPassword?}` | `200` user · `400` · `403` mot de passe faux · `409` email pris | profil ; `currentPassword` requis pour changer d'email ; champ inconnu (`role`…) → `400` |
+| PATCH | `/me/password` | `{currentPassword, newPassword, confirm}` | `204`, cookies vidés · `400` · `403` mot de passe faux · `429` | toutes les sessions sont révoquées : reconnexion obligatoire |
+| DELETE | `/me` | `{password}` | `204`, cookies vidés · `403` mot de passe faux · `409` dernier admin · `429` | historique et favoris partent avec (CASCADE) |
 | GET | `/me/history` | – | `200` `Array<MovieSummary & {watchedAt}>` | 10 derniers films lancés dans VLC |
 | DELETE | `/me/history` | – | `204` | vider l'historique |
 | DELETE | `/me/history/:movieId` | – | `204` · `404` | retirer un film |
 | GET | `/me/favorites` | – | `200` `Array<MovieSummary & {addedAt}>` | favoris (10 max) |
 | PUT | `/me/favorites/:movieId` | – | `204` · `404` film inconnu · `409` 10 favoris atteints | ajouter (**idempotent** : 2ᵉ appel = rien ne change) |
 | DELETE | `/me/favorites/:movieId` | – | `204` · `404` | retirer |
+
+Un mot de passe faux renvoie **`403`** et non `401` : l'utilisateur est bien
+connecté, et un `401` déclencherait à tort le renouvellement des jetons côté
+client. Connexion, inscription, changement de mot de passe et suppression
+du compte sont limités à `AUTH_RATE_LIMIT` échecs (10 par défaut) par IP et
+par 15 minutes → **`429`** (*Too Many Requests*).
 
 Un visionnage est noté par `GET /media-files/:id/playlist` (clic « Lire
 dans VLC ») si le fichier est rattaché à un film. `GET /movies/:id`
@@ -183,5 +189,6 @@ Format unique renvoyé par `global-error-handler` : `{ "error": "message lisible
 | `403` | rôle insuffisant (`checkRoles`) ou lecture VLC hors réseau local |
 | `404` | ressource inexistante, route inconnue |
 | `409` | conflit : scan déjà en cours, email déjà pris, 10 favoris atteints, suppression du dernier admin |
+| `429` | trop de mots de passe faux depuis la même IP (15 min) |
 | `502` | TMDB indisponible lors d'une association manuelle |
 | `500` | erreur imprévue (loggée côté serveur avec son contexte) |

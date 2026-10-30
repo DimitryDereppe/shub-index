@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "../@types/express.js";
 import { BadRequestError, ConflictError, UnauthorizedError } from "../lib/errors.ts";
 import * as libTokens from "../lib/tokens.ts";
 import { isValidPassword } from '../lib/validators.ts';
+import { emailSchema, personNameSchema } from "../lib/zod-helpers.ts";
 import usersDataMapper from "../models/users.datamapper.ts";
 import refreshTokensDataMapper from "../models/refresh-tokens.datamapper.ts";
 import { withTransaction } from "../models/transaction.ts";
@@ -18,9 +19,10 @@ export async function register(req: Request, res: Response) {
 
   // schema attendu du body
   const registerUserBodySchema = z.object({
-    firstname: z.string().min(1),
-    lastname: z.string().min(1),
-    email: z.email(),
+    // longueurs max = celles des colonnes : un nom trop long donnait une erreur 500 (BDD)
+    firstname: personNameSchema,
+    lastname: personNameSchema,
+    email: emailSchema,
     password: z.string(),
     confirm: z.string(),
   });
@@ -76,7 +78,7 @@ export async function login(req: Request, res: Response) {
 
   // schema attendu du body
   const loginUserBodySchema = z.object({
-    email: z.email(),
+    email: emailSchema,
     password: z.string(),
   });
 

@@ -46,6 +46,7 @@ services:
       PLAY_URL_PREFIX: ${PLAY_URL_PREFIX:-}
       LAN_CIDRS: ${LAN_CIDRS:-}
       LAN_PUBLIC_HOSTNAME: ${LAN_PUBLIC_HOSTNAME:-}
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
     volumes:
       # partage du NAS en LECTURE SEULE : l'application ne peut ni modifier ni supprimer un film
       - share:/media/shub:ro

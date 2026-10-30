@@ -31,14 +31,15 @@ const specification = swaggerJsdoc({
   apis: [path.join(import.meta.dirname, "*.router.{ts,js}")],
 });
 
-// Avant isConnected pour rendre la page publique : http://localhost:4000/api/docs
-router.use("/docs", swaggerUi.serve, swaggerUi.setup(specification));
-
 router.use(authRouter);
 
 // toutes les routes qui suivent sont accessibles uniquement si l'utilisateur est connecté
 // connecté --> possède un accessToken valide
 router.use(isConnected);
+
+// documentation Swagger (/api/docs) : réservée aux membres connectés, le site étant public
+// (elle décrivait toute l'API à n'importe quel visiteur d'Internet)
+router.use("/docs", swaggerUi.serve, swaggerUi.setup(specification));
 
 router.use(meRouter);
 router.use(moviesRouter);

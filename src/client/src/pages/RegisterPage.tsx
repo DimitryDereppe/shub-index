@@ -41,15 +41,15 @@ export function RegisterPage() {
       <form onSubmit={handleSubmit} className="form">
         <div className="field">
           <label htmlFor="firstname">Prénom</label>
-          <input id="firstname" name="firstname" autoComplete="given-name" required />
+          <input id="firstname" name="firstname" autoComplete="given-name" required maxLength={128} />
         </div>
         <div className="field">
           <label htmlFor="lastname">Nom</label>
-          <input id="lastname" name="lastname" autoComplete="family-name" required />
+          <input id="lastname" name="lastname" autoComplete="family-name" required maxLength={128} />
         </div>
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" autoComplete="email" required />
+          <input id="email" name="email" type="email" autoComplete="email" required maxLength={128} />
         </div>
         <div className="field">
           <label htmlFor="password">Mot de passe</label>
