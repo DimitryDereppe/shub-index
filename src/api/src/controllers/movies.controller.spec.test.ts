@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { beforeEach, describe, it } from "node:test";
 import type { AxiosInstance } from "axios";
 import * as libTests from "../../tests/index.ts";
+import { config } from "../../config.ts";
 import pool from "../models/database-client.ts";
 
 /** Crée une saga et y range les films donnés ; renvoie l'id de la saga. */
@@ -22,6 +23,43 @@ async function createStudio(name: string, movieIds: number[]): Promise<number> {
   }
   return studioId;
 }
+
+describe("movies.controller — fichiers du NAS selon le réseau", () => {
+  let bobRequester: AxiosInstance;
+  let movieId: number;
+
+  beforeEach(async () => {
+    bobRequester = await libTests.loggedRequester(libTests.BOB);
+    movieId = await libTests.createMovie("Alien");
+    await libTests.createMediaFile(movieId, "Alien (1979).mkv");
+  });
+
+  it("[GET] /movies/:id from the local network should list the files", async () => {
+    const { status, data } = await bobRequester.get(`/movies/${movieId}`);
+
+    assert.strictEqual(status, 200);
+    assert.strictEqual(data.onLocalNetwork, true);
+    assert.strictEqual(data.files.length, 1);
+    assert.match(data.files[0].path, /Alien \(1979\)\.mkv$/);
+  });
+
+  it("[GET] /movies/:id from outside should not reveal any path", async () => {
+    // le serveur de test est appelé depuis 127.0.0.1 : on retire les plages locales le temps du test
+    const savedCidrs = config.lanCidrs;
+    config.lanCidrs = [];
+    try {
+      const { status, data } = await bobRequester.get(`/movies/${movieId}`);
+
+      assert.strictEqual(status, 200);
+      assert.strictEqual(data.onLocalNetwork, false);
+      assert.strictEqual(data.canPlay, false);
+      assert.deepStrictEqual(data.files, []);
+      assert.ok(!JSON.stringify(data).includes("Alien (1979).mkv"), "aucun nom de fichier dans la réponse");
+    } finally {
+      config.lanCidrs = savedCidrs; // ne pas fausser les tests suivants
+    }
+  });
+});
 
 describe("movies.controller — studios", () => {
   let bobRequester: AxiosInstance;

@@ -62,6 +62,7 @@ export interface MovieDetail {
   posterUrl: string | null;
   tmdbId: number | null;
   canPlay: boolean;
+  onLocalNetwork: boolean; // false → files est vide (l'API ne révèle pas les chemins du NAS)
   isFavorite: boolean; // le film est dans les favoris de l'utilisateur connecté
   genres: Array<{ id: number; name: string }>;
   directors: PersonRef[];

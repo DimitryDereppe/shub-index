@@ -384,6 +384,14 @@ textarea {
 .badge--cert-16 { background: #9a2f00; }
 .badge--cert-18 { background: #8b1010; }
 
+.results__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0;
+}
+
 .results {
   margin-top: 1rem;
 }

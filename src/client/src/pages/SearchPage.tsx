@@ -5,10 +5,14 @@
  * - l'URL est la seule source de vérité (pas de double état à synchroniser) ;
  * - le lien se partage, se met en favori, et « Précédent » revient à la recherche d'avant.
  * Envoyer le formulaire = changer l'URL ; changer l'URL = recharger les résultats.
+ *
+ * Les champs partent TOUJOURS vides (pas de pré-remplissage depuis l'URL) : chaque
+ * recherche repart de zéro, aucun ancien filtre ne reste caché dans le formulaire.
+ * La recherche en cours est rappelée au-dessus des résultats (describeSearch).
  */
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router";
-import { CERTIFICATIONS, type Genre, type MovieSummary, type Page } from "../api/types.ts";
+import { CERTIFICATIONS, type Certification, type Genre, type MovieSummary, type Page } from "../api/types.ts";
 import { CERTIFICATION_LABELS } from "../components/CertificationBadge.tsx";
 import { MovieGrid } from "../components/MovieCard.tsx";
 import { PaginationNav } from "../components/PaginationNav.tsx";
@@ -16,26 +20,44 @@ import { PersonInput } from "../components/PersonInput.tsx";
 import { ErrorMessage, Loading } from "../components/Status.tsx";
 import { useApi } from "../hooks/useApi.ts";
 
-const TEXT_FIELDS = ["q", "year", "yearFrom", "yearTo", "maxCertification", "sort", "saga"];
+const SORT_LABELS: Record<string, string> = {
+  "-title": "titre Z → A",
+  "-year": "plus récents d'abord",
+  year: "plus anciens d'abord",
+};
+
+/**
+ * Résumé lisible de la recherche en cours, lu dans l'URL :
+ * ?q=deadpool&maxCertification=12 → ["« deadpool »", "classification max -12"]
+ */
+function describeSearch(params: URLSearchParams, sagaName: string | undefined): string[] {
+  const parts: string[] = [];
+  const q = params.get("q");
+  if (q) parts.push(`« ${q} »`);
+  if (params.get("saga")) parts.push(`saga ${sagaName ?? `n°${params.get("saga")}`}`);
+  if (params.get("director")) parts.push(`réalisateur ${params.get("director")}`);
+  if (params.get("actor")) parts.push(`avec ${params.get("actor")}`);
+  if (params.get("year")) parts.push(`année ${params.get("year")}`);
+  if (params.get("yearFrom") || params.get("yearTo")) {
+    parts.push(`entre ${params.get("yearFrom") ?? "…"} et ${params.get("yearTo") ?? "…"}`);
+  }
+  const genres = params.getAll("genre");
+  if (genres.length > 0) parts.push(`genres ${genres.join(" + ")}`);
+  const maxCertification = params.get("maxCertification") as Certification | null;
+  if (maxCertification) parts.push(`classification max : ${CERTIFICATION_LABELS[maxCertification]}`);
+  const sort = params.get("sort");
+  if (sort && SORT_LABELS[sort]) parts.push(`tri : ${SORT_LABELS[sort]}`);
+  return parts;
+}
 
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const movies = useApi<Page<MovieSummary>>(`/movies?${searchParams}`);
   const genres = useApi<Genre[]>("/genres");
 
-  const selectedGenres = searchParams.getAll("genre");
-
-  // ?saga=12 vient du lien « Saga » d'une fiche film : pas de champ dans le formulaire,
-  // on affiche son nom (lu sur le 1er résultat) avec un bouton pour retirer ce filtre
-  const sagaId = searchParams.get("saga");
+  // ?saga=12 vient du lien « Saga » d'une fiche film : son nom est lu sur le 1er résultat
   const sagaName = movies.status === "success" ? movies.data.data[0]?.saga?.name : undefined;
-
-  function removeSagaFilter() {
-    const params = new URLSearchParams(searchParams);
-    params.delete("saga");
-    params.delete("page");
-    setSearchParams(params);
-  }
+  const currentSearch = describeSearch(searchParams, sagaName);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,45 +76,34 @@ export function SearchPage() {
     <>
       <h1>Rechercher un film</h1>
 
-      {/* key : quand l'URL change (bouton Précédent, Réinitialiser), le formulaire est recréé
-          avec les nouvelles valeurs par défaut */}
+      {/* key : à chaque nouvelle URL (nouvelle recherche, Précédent…), React recrée le
+          formulaire → tous les champs reviennent à leur valeur par défaut, donc vides */}
       <form key={searchParams.toString()} onSubmit={handleSubmit} className="search-form" role="search">
-        {sagaId && (
-          <p className="field field--wide">
-            {/* champ caché : relancer une recherche garde le filtre saga */}
-            <input type="hidden" name="saga" value={sagaId} />
-            Saga : <strong>{sagaName ?? `n°${sagaId}`}</strong>{" "}
-            <button type="button" className="button button--ghost" onClick={removeSagaFilter}>
-              Retirer ce filtre
-            </button>
-          </p>
-        )}
-
         <div className="field field--wide">
           <label htmlFor="q">Titre, saga ou studio</label>
-          <input id="q" name="q" type="search" defaultValue={searchParams.get("q") ?? ""} placeholder="ex. alien, marvel, star wars" />
+          <input id="q" name="q" type="search" defaultValue="" placeholder="ex. alien, marvel, star wars" />
         </div>
 
-        <PersonInput id="director" name="director" label="Réalisateur" role="director" defaultValue={searchParams.get("director") ?? ""} />
-        <PersonInput id="actor" name="actor" label="Acteur ou actrice" role="actor" defaultValue={searchParams.get("actor") ?? ""} />
+        <PersonInput id="director" name="director" label="Réalisateur" role="director" defaultValue="" />
+        <PersonInput id="actor" name="actor" label="Acteur ou actrice" role="actor" defaultValue="" />
 
         <div className="field">
           <label htmlFor="year">Année exacte</label>
-          <input id="year" name="year" type="number" min="1888" max="2100" defaultValue={searchParams.get("year") ?? ""} />
+          <input id="year" name="year" type="number" min="1888" max="2100" defaultValue="" />
         </div>
 
         <fieldset className="field field--range">
           <legend>Entre les années</legend>
           <label htmlFor="yearFrom" className="visually-hidden">Année de début</label>
-          <input id="yearFrom" name="yearFrom" type="number" min="1888" max="2100" placeholder="1980" defaultValue={searchParams.get("yearFrom") ?? ""} />
+          <input id="yearFrom" name="yearFrom" type="number" min="1888" max="2100" placeholder="1980" defaultValue="" />
           <span aria-hidden="true">–</span>
           <label htmlFor="yearTo" className="visually-hidden">Année de fin</label>
-          <input id="yearTo" name="yearTo" type="number" min="1888" max="2100" placeholder="1989" defaultValue={searchParams.get("yearTo") ?? ""} />
+          <input id="yearTo" name="yearTo" type="number" min="1888" max="2100" placeholder="1989" defaultValue="" />
         </fieldset>
 
         <div className="field">
           <label htmlFor="maxCertification">Classification maximale</label>
-          <select id="maxCertification" name="maxCertification" defaultValue={searchParams.get("maxCertification") ?? ""}>
+          <select id="maxCertification" name="maxCertification" defaultValue="">
             <option value="">Toutes</option>
             {CERTIFICATIONS.map((certification) => (
               <option key={certification} value={certification}>
@@ -104,7 +115,7 @@ export function SearchPage() {
 
         <div className="field">
           <label htmlFor="sort">Trier par</label>
-          <select id="sort" name="sort" defaultValue={searchParams.get("sort") ?? "title"}>
+          <select id="sort" name="sort" defaultValue="title">
             <option value="title">Titre (A → Z)</option>
             <option value="-title">Titre (Z → A)</option>
             <option value="-year">Année (récent d'abord)</option>
@@ -117,7 +128,7 @@ export function SearchPage() {
           {genres.status === "success" &&
             genres.data.map((genre) => (
               <label key={genre.id} className="genres__item">
-                <input type="checkbox" name="genre" value={genre.name} defaultChecked={selectedGenres.includes(genre.name)} />
+                <input type="checkbox" name="genre" value={genre.name} />
                 {genre.name} <span className="genres__count">({genre.movieCount})</span>
               </label>
             ))}
@@ -128,13 +139,9 @@ export function SearchPage() {
           <button type="submit" className="button">
             Rechercher
           </button>
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => setSearchParams(new URLSearchParams())}
-            disabled={[...TEXT_FIELDS, "director", "actor", "genre"].every((key) => !searchParams.has(key))}
-          >
-            Réinitialiser
+          {/* type="reset" : vide ce qu'on vient de taper, sans relancer de recherche */}
+          <button type="reset" className="button button--ghost">
+            Vider les champs
           </button>
         </div>
       </form>
@@ -144,6 +151,14 @@ export function SearchPage() {
           Résultats
           {movies.status === "success" && ` (${movies.data.pagination.total})`}
         </h2>
+        {currentSearch.length > 0 && (
+          <p className="results__summary">
+            Pour : <strong>{currentSearch.join(" · ")}</strong>{" "}
+            <button type="button" className="button button--ghost" onClick={() => setSearchParams(new URLSearchParams())}>
+              Tout afficher
+            </button>
+          </p>
+        )}
         {movies.status === "loading" && <Loading label="Recherche en cours…" />}
         {movies.status === "error" && <ErrorMessage message={movies.error} />}
         {movies.status === "success" &&

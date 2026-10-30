@@ -120,6 +120,7 @@ router.use(usersRouter);
  *         posterUrl: { type: string, nullable: true }
  *         tmdbId: { type: integer, nullable: true }
  *         canPlay: { type: boolean, description: "Requête venue du réseau local : bouton VLC affichable" }
+ *         onLocalNetwork: { type: boolean, description: "Requête venue du réseau local (LAN, VPN) ; sinon files est vide" }
  *         isFavorite: { type: boolean, description: "Film dans les favoris de l'utilisateur connecté" }
  *         studios:
  *           type: array

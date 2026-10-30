@@ -99,6 +99,9 @@ d'une **liste blanche** (§ 7).
 ```
 
 - `available` = le film a au moins un fichier présent.
+- `onLocalNetwork` = la requête vient du réseau local (`LAN_CIDRS` : LAN et VPN
+  WireGuard, ou IP publique de la box). Sinon **`files` est vide** : l'API ne
+  révèle aucun chemin du NAS hors de la maison (2026-10-31).
 - `canPlay` = la requête vient du réseau local (RG10) : le client affiche
   le bouton « Lire dans VLC » seulement si `true`. Ce n'est **qu'un
   confort d'affichage** : la vraie vérification est refaite par la route

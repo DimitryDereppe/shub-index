@@ -99,33 +99,36 @@ export function MoviePage() {
 
           {film.synopsis && <p className="movie__synopsis">{film.synopsis}</p>}
 
-          <section aria-labelledby="files-title" className="movie__files">
-            <h2 id="files-title">Sur le NAS</h2>
-            {film.files.length === 0 ? (
-              <p>Aucun fichier : le film a été retiré du partage.</p>
-            ) : (
-              <ul className="file-list">
-                {film.files.map((file) => (
-                  <li key={file.id} className="file-list__item">
-                    <code className="file-list__path">{file.path}</code>
-                    <span className="file-list__size">{formatSize(file.sizeBytes)}</span>
-                    <span className="file-list__actions">
-                      <CopyButton text={file.path} />
-                      {/* canPlay n'est qu'un confort d'affichage : l'API revérifie le réseau (RG10) */}
-                      {film.canPlay && (
-                        <a className="button" href={`/api/media-files/${file.id}/playlist`} download>
-                          ▶ Lire dans VLC
-                        </a>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!film.canPlay && film.files.length > 0 && (
-              <p className="field__help">La lecture dans VLC n'est possible que depuis le réseau local.</p>
-            )}
-          </section>
+          {!film.onLocalNetwork ? (
+            <p className="field__help">
+              Les fichiers du NAS et la lecture dans VLC ne sont visibles que depuis le réseau local (ou le VPN).
+            </p>
+          ) : (
+            <section aria-labelledby="files-title" className="movie__files">
+              <h2 id="files-title">Sur le NAS</h2>
+              {film.files.length === 0 ? (
+                <p>Aucun fichier : le film a été retiré du partage.</p>
+              ) : (
+                <ul className="file-list">
+                  {film.files.map((file) => (
+                    <li key={file.id} className="file-list__item">
+                      <code className="file-list__path">{file.path}</code>
+                      <span className="file-list__size">{formatSize(file.sizeBytes)}</span>
+                      <span className="file-list__actions">
+                        <CopyButton text={file.path} />
+                        {/* canPlay n'est qu'un confort d'affichage : l'API revérifie le réseau (RG10) */}
+                        {film.canPlay && (
+                          <a className="button" href={`/api/media-files/${file.id}/playlist`} download>
+                            ▶ Lire dans VLC
+                          </a>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </div>
       </div>
 

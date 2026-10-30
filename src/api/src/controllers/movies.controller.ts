@@ -84,13 +84,19 @@ export async function getOne(req: Request, res: Response) {
     throw new NotFoundError("Film introuvable");
   }
 
+  // réseau local (LAN, VPN, IP publique de la box) : seul cas où l'on montre les fichiers du NAS
+  const onLocalNetwork = await isLocalRequest(req.ip);
+
   res.json({
     ...movie,
     // pour le bouton ☆/★ de la fiche (userId posé par isConnected, toujours présent ici)
     isFavorite: userId ? await favoritesDataMapper.exists(userId, id) : false,
+    onLocalNetwork,
     // simple confort d'affichage : la route /playlist refait la vérification (on ne croit jamais le client)
-    canPlay: config.playUrlPrefix !== "" && (await isLocalRequest(req.ip)),
-    files: movie.files.map((file) => ({ ...file, path: toDisplayPath(file.path) })),
+    canPlay: config.playUrlPrefix !== "" && onLocalNetwork,
+    // hors réseau local, AUCUN chemin ne part : masquer la section côté React ne suffirait pas,
+    // le JSON resterait lisible dans l'onglet Réseau du navigateur
+    files: onLocalNetwork ? movie.files.map((file) => ({ ...file, path: toDisplayPath(file.path) })) : [],
   });
 }
 
