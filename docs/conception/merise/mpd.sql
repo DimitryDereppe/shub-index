@@ -16,7 +16,7 @@ BEGIN;
 DROP TABLE IF EXISTS watch_history, favorite CASCADE;
 DROP TABLE IF EXISTS movie_cast, movie_director, movie_has_genre, movie_studio CASCADE;
 DROP TABLE IF EXISTS media_file, scan, movie, person, genre, saga, studio CASCADE;
-DROP TABLE IF EXISTS refresh_token, "user" CASCADE;
+DROP TABLE IF EXISTS password_reset_token, refresh_token, "user" CASCADE;
 DROP TYPE IF EXISTS role, media_file_status, scan_status;
 
 -- unaccent() : retire les accents ("Amélie" → "Amelie") pour la recherche (US12).
@@ -57,6 +57,22 @@ CREATE TABLE refresh_token (
 CREATE UNIQUE INDEX refresh_token_user_id_not_consumed
   ON refresh_token (user_id)
   WHERE consumed = false;
+
+-- Récupération du mot de passe (2026-10-31) : lien envoyé par email, valable 30 min, à usage unique.
+-- Comme pour refresh_token, on ne stocke que l'EMPREINTE (SHA-512) du jeton, jamais le jeton.
+CREATE TABLE password_reset_token (
+  id         INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  token_hash VARCHAR(128) NOT NULL UNIQUE,
+  user_id    INT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ                          -- NULL tant que le lien n'a pas servi
+);
+
+-- un seul lien utilisable à la fois par utilisateur (même technique que refresh_token)
+CREATE UNIQUE INDEX password_reset_token_one_pending
+  ON password_reset_token (user_id)
+  WHERE used_at IS NULL;
 
 -- -----------------------------------------------------------------------------
 -- Catalogue

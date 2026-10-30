@@ -21,3 +21,16 @@ export const authRateLimiter = rateLimit({
   // même forme que les autres erreurs de l'API (global-error-handler)
   message: { error: "Trop de tentatives : réessayez dans 15 minutes", status: 429 },
 });
+
+/**
+ * Demandes d'email de réinitialisation : cette route répond TOUJOURS 202 (même message pour
+ * tous), donc « ne compter que les échecs » ne la limiterait jamais. Ici, chaque demande compte :
+ * on évite qu'un robot inonde quelqu'un d'emails ou fasse de shub-index un relais de spam.
+ */
+export const emailRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: () => config.emailRateLimit, // demandes par IP et par 15 min (5 par défaut)
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Trop de demandes : réessayez dans 15 minutes", status: 429 },
+});

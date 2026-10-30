@@ -23,6 +23,8 @@
 | POST | `/auth/refresh` | yes (cookie) | yes | yes |
 | POST | `/auth/logout` | no | yes | yes |
 | GET | `/auth/me` | no | yes | yes |
+| POST | `/auth/forgot-password` | yes | yes | yes |
+| POST | `/auth/reset-password` | yes (lien reçu par email) | yes | yes |
 
 ## 👤 Mon compte *(2026-10-30)*
 

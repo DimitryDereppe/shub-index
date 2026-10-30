@@ -2,7 +2,8 @@
  * Point d'entrée du client : routes (createBrowserRouter) + fournisseur d'authentification.
  *
  * Arbre des routes :
- *   /connexion, /inscription              publiques
+ *   /connexion, /inscription,
+ *   /mot-de-passe-oublie, /reinitialiser  publiques
  *   /, /films/:id, /personnes/:id, /compte  membre connecté (RequireAuth)
  *   /admin/indexations, /admin/fichiers,
  *   /admin/comptes                        admin (RequireAdmin)
@@ -15,6 +16,8 @@ import { Layout } from "./components/Layout.tsx";
 import { RequireAdmin, RequireAuth } from "./components/RouteGuards.tsx";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { AccountPage } from "./pages/AccountPage.tsx";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.tsx";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { MoviePage } from "./pages/MoviePage.tsx";
 import { NotFoundPage } from "./pages/NotFoundPage.tsx";
@@ -31,6 +34,8 @@ const router = createBrowserRouter([
     children: [
       { path: "/connexion", element: <LoginPage /> },
       { path: "/inscription", element: <RegisterPage /> },
+      { path: "/mot-de-passe-oublie", element: <ForgotPasswordPage /> },
+      { path: "/reinitialiser", element: <ResetPasswordPage /> },
       {
         element: <RequireAuth />,
         children: [

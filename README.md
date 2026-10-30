@@ -24,6 +24,8 @@ Merise et UML, API REST en Express + TypeScript, PostgreSQL en **SQL brut**
 - **Fiches** film et personne (filmographie comme réalisateur et comme acteur).
 - **Lecture dans VLC** : le bouton télécharge une playlist `.m3u` (`smb://…`) ;
   VLC lit directement sur le NAS. Réservé au réseau local.
+- **Mot de passe oublié** : lien par email (Nodemailer), valable 30 minutes,
+  à usage unique.
 - **Mon compte** : modifier son nom et son email, changer son mot de passe,
   supprimer son compte, **10 favoris**, historique des **10 derniers films**
   lancés dans VLC.

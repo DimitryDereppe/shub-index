@@ -16,6 +16,8 @@
 | POST | `/auth/refresh` | cookie `refreshToken` | `200` + nouveaux cookies | rotation |
 | POST | `/auth/logout` | – | `204`, cookies vidés | déconnexion |
 | GET | `/auth/me` | – | `200` user | profil connecté |
+| POST | `/auth/forgot-password` | `{email}` | `202` (toujours le même message) · `429` | envoie par email un lien valable 30 min, à usage unique *(2026-10-31)* |
+| POST | `/auth/reset-password` | `{token, newPassword, confirm}` | `204`, cookies vidés · `400` lien invalide/expiré/utilisé · `429` | nouveau mot de passe, toutes les sessions fermées |
 
 ## 👤 Mon compte *(2026-10-30, tout membre connecté)*
 

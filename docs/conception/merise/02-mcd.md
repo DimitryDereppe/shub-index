@@ -40,6 +40,8 @@ LANCER, 0N UTILISATEUR, 01 INDEXATION
 UTILISATEUR: code utilisateur, email, prénom, nom, mot de passe, rôle
 POSSÉDER, 0N UTILISATEUR, 11 JETON DE RAFRAÎCHISSEMENT
 JETON DE RAFRAÎCHISSEMENT: code jeton, empreinte, consommé, émis le, expire le
+DEMANDER, 0N UTILISATEUR, 11 JETON DE RÉINITIALISATION
+JETON DE RÉINITIALISATION: code jeton, empreinte, créé le, expire le, utilisé le
 
 REGARDER, 0N UTILISATEUR, 0N FILM: regardé le
 METTRE EN FAVORI, 0N UTILISATEUR, 0N FILM: ajouté le
@@ -62,6 +64,7 @@ METTRE EN FAVORI, 0N UTILISATEUR, 0N FILM: ajouté le
 | LANCER | INDEXATION **0,1** | UTILISATEUR **0,N** | lancée par un admin **ou** par la tâche planifiée (aucun utilisateur) (RG6) |
 | REGARDER | UTILISATEUR **0,N** | FILM **0,N** | un utilisateur regarde plusieurs films, un film est regardé par plusieurs utilisateurs ; **attribut porté** : `regardé le` (au couple, comme `personnage` dans JOUER) *(2026-10-30)* |
 | METTRE EN FAVORI | UTILISATEUR **0,N** | FILM **0,N** | même raisonnement ; attribut `ajouté le`. La limite de **10** n'est pas une cardinalité Merise exprimable par la base : elle est vérifiée par l'API *(2026-10-30)* |
+| DEMANDER | JETON DE RÉINITIALISATION **1,1** | UTILISATEUR **0,N** | un lien « mot de passe oublié » appartient toujours à un utilisateur ; un utilisateur peut en demander plusieurs (un seul utilisable à la fois) *(2026-10-31)* |
 | POSSÉDER | JETON **1,1** | UTILISATEUR **0,N** | brique auth reprise d'oquiz : un jeton appartient toujours à un utilisateur |
 
 ## Choix de modélisation discutés

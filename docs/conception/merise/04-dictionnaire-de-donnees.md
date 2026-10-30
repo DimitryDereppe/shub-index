@@ -41,6 +41,20 @@
 Contrainte : index unique partiel — un seul jeton non consommé par
 utilisateur.
 
+## Table `password_reset_token` (DEMANDER) *(2026-10-31)*
+
+| Champ | Type | Unique | Not null | Référence | Défaut | Exemple | Explication |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `id` | GENERATED | ✅ | ✅ | – | – | 3 | identifiant |
+| `token_hash` | VARCHAR(128) | ✅ | ✅ | – | – | `"9f86d0…"` | SHA-512 hex du jeton du lien (jamais le jeton en clair) |
+| `user_id` | INT | ❌ | ✅ | `user(id)` **CASCADE** | – | 2 | compte concerné |
+| `created_at` | TIMESTAMPTZ | ❌ | ✅ | – | `now()` | – | demande |
+| `expires_at` | TIMESTAMPTZ | ❌ | ✅ | – | – | – | création + 30 min |
+| `used_at` | TIMESTAMPTZ | ❌ | ❌ | – | – | – | `NULL` tant que le lien n'a pas servi (usage unique) |
+
+Contrainte : index unique partiel — un seul lien non utilisé par
+utilisateur (une nouvelle demande remplace l'ancienne).
+
 ## Table `genre`
 
 | Champ | Type | Unique | Not null | Référence | Défaut | Exemple | Explication |

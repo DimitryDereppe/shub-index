@@ -42,6 +42,9 @@ Studios (même jour) : tables `studio` et `movie_studio` (+ index),
 migration `src/api/database/migration-2026-10-30-studio.sql` ; le même
 `npm run backfill` remplit les studios des films existants.
 
+Mot de passe oublié (2026-10-31) : table `password_reset_token`, migration
+`src/api/database/migration-2026-10-31-password-reset.sql`.
+
 ## Contraintes métier portées par la base
 
 Elles protègent les données **même si** le code de l'API a un bug :

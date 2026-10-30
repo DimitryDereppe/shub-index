@@ -24,7 +24,7 @@ interface RequestOptions {
 }
 
 // routes pour lesquelles un 401 ne doit PAS déclencher de refresh (sinon boucle ou contresens)
-const NO_REFRESH_PATHS = ["/auth/login", "/auth/register", "/auth/refresh"];
+const NO_REFRESH_PATHS = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/forgot-password", "/auth/reset-password"];
 
 // Une seule demande de refresh à la fois : si 3 requêtes reçoivent 401 en même temps,
 // elles attendent toutes la MÊME promesse. Sinon le 2ᵉ refresh réutiliserait un jeton

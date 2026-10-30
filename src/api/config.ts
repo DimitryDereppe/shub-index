@@ -25,6 +25,8 @@ export const config = {
   allowedOrigins: process.env.ALLOWED_ORIGINS ?? "",
   // tentatives ÉCHOUÉES autorisées par IP et par 15 min sur les routes de mot de passe (force brute)
   authRateLimit: parseInt(process.env.AUTH_RATE_LIMIT ?? "10", 10),
+  // demandes d'email « mot de passe oublié » par IP et par 15 min (anti-spam)
+  emailRateLimit: parseInt(process.env.EMAIL_RATE_LIMIT ?? "5", 10),
 
   // ---- reverse proxy ----
   // valeur passée à app.set("trust proxy") : adresse/plage du SEUL proxy de confiance (Caddy, Nginx…).
@@ -49,6 +51,17 @@ export const config = {
   shareUncPrefix: process.env.SHARE_UNC_PREFIX ?? "", // ex. \\<ip-du-nas>\Partage (affiché sur la fiche, US09)
   playUrlPrefix: process.env.PLAY_URL_PREFIX ?? "", // ex. smb://<ip-du-nas>/Partage (écrit dans le .m3u, US13)
   lanCidrs: toList(process.env.LAN_CIDRS), // plages "réseau local" (RG10) ; vide = lecture VLC refusée à tous
+  // ---- emails (récupération du mot de passe, cf. src/mailer.ts) ----
+  // SMTP_HOST vide = aucun email envoyé (le contenu est seulement journalisé, sans le lien)
+  smtpHost: process.env.SMTP_HOST ?? "",
+  smtpPort: Number(process.env.SMTP_PORT ?? "465"), // process.env donne toujours des chaînes
+  smtpSecure: (process.env.SMTP_SECURE ?? "true") === "true", // "false" est une chaîne "vraie" dans un if !
+  smtpUser: process.env.SMTP_USER ?? "",
+  smtpPass: process.env.SMTP_PASS ?? "", // secret : jamais loggé
+  mailFrom: process.env.MAIL_FROM ?? "shub-index <no-reply@localhost>",
+  appUrl: (process.env.APP_URL ?? "http://localhost:5173").replace(/\/+$/, ""), // adresse du site, pour les liens des emails
+  resetTokenTtlMinutes: 30, // durée de validité d'un lien de réinitialisation
+
   // nom DuckDNS de la box : son IP publique compte aussi comme "réseau local" (hairpin NAT, cf. lib/network.ts)
   lanPublicHostname: process.env.LAN_PUBLIC_HOSTNAME ?? "",
 };

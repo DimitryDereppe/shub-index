@@ -1,4 +1,9 @@
 import argon2 from "argon2";
+import crypto from "node:crypto";
+import { config } from "../../config.ts";
+import { buildPasswordResetEmail } from "../lib/emails.ts";
+import { transporter } from "../mailer.ts";
+import passwordResetTokensDataMapper from "../models/password-reset-tokens.datamapper.ts";
 import type { Request, Response } from "express";
 import z from 'zod';
 import { AuthenticatedRequest } from "../@types/express.js";
@@ -256,4 +261,93 @@ export async function logout(req: AuthenticatedRequest, res: Response) {
   libTokens.clearAuthenticationCookies(res);
 
   res.status(204).end(); // 204 = pas de contenu : on n'envoie pas de body
+}
+
+
+// --------------------------------
+// POST /auth/forgot-password — { email } : envoie un lien de réinitialisation par email
+// --------------------------------
+const forgotPasswordSchema = z.object({ email: emailSchema });
+
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = forgotPasswordSchema.parse(req.body);
+
+  // réponse IDENTIQUE que le compte existe ou non, et envoyée TOUT DE SUITE :
+  // ni le message ni le temps de réponse ne révèlent si cet email a un compte
+  res.status(202).json({ message: "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé." });
+
+  // la suite (base + envoi de l'email) se déroule APRÈS la réponse : une erreur ici
+  // ne peut plus passer par le global-error-handler, on la journalise nous-mêmes
+  try {
+    await sendPasswordResetLink(email);
+  } catch (error) {
+    console.error("Envoi du lien de réinitialisation impossible", { error: (error as Error).message });
+  }
+}
+
+/** Crée un lien de réinitialisation et l'envoie par email (ne fait rien si le compte n'existe pas). */
+async function sendPasswordResetLink(email: string): Promise<void> {
+  const user = await usersDataMapper.findByEmail(email);
+  if (!user) {
+    return;
+  }
+
+  // jeton secret et imprévisible (comme le refresh token) ; base64url : utilisable tel quel dans une URL
+  const token = crypto.randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + config.resetTokenTtlMinutes * 60 * 1000);
+
+  // en base, seulement l'EMPREINTE : une fuite de la base ne donnerait aucun lien utilisable
+  await withTransaction((tx) =>
+    passwordResetTokensDataMapper.replaceForUser(user.id, libTokens.getTokenHash(token), expiresAt, tx)
+  );
+
+  const link = `${config.appUrl}/reinitialiser?jeton=${token}`;
+  await transporter.sendMail({ to: user.email, ...buildPasswordResetEmail(user.firstname, link, config.resetTokenTtlMinutes) });
+}
+
+
+// --------------------------------
+// POST /auth/reset-password — { token, newPassword, confirm }
+// --------------------------------
+const resetPasswordSchema = z.object({
+  token: z.string().min(20).max(200),
+  newPassword: z.string(),
+  confirm: z.string(),
+});
+
+export async function resetPassword(req: Request, res: Response) {
+  const { token, newPassword, confirm } = resetPasswordSchema.parse(req.body);
+
+  // mêmes règles qu'à l'inscription
+  if (newPassword !== confirm) {
+    throw new BadRequestError("Le mot de passe et sa confirmation ne correspondent pas");
+  }
+  if (!isValidPassword(newPassword)) {
+    throw new BadRequestError("Mot de passe invalide");
+  }
+
+  const hashedPassword = await argon2.hash(newPassword);
+
+  // tout ou rien : lien consommé + nouveau mot de passe + sessions fermées
+  const userId = await withTransaction(async (tx) => {
+    const resetToken = await passwordResetTokensDataMapper.findByHash(libTokens.getTokenHash(token), tx);
+    // 400 (et pas 401) : personne n'est connecté ici, il n'y a aucun jeton de session à renouveler
+    if (!resetToken || resetToken.used_at || resetToken.expires_at <= new Date()) {
+      return null;
+    }
+    if (!(await passwordResetTokensDataMapper.markUsed(resetToken.id, tx))) {
+      return null; // utilisé au même instant par une autre requête
+    }
+    await usersDataMapper.updatePassword(resetToken.user_id, hashedPassword, tx);
+    // quiconque était connecté avec l'ancien mot de passe doit se reconnecter
+    await libTokens.revokeAllUserRefreshTokens(resetToken.user_id, tx);
+    return resetToken.user_id;
+  });
+
+  if (userId === null) {
+    throw new BadRequestError("Lien invalide ou expiré : refaites une demande de réinitialisation");
+  }
+
+  libTokens.clearAuthenticationCookies(res);
+  res.status(204).end();
 }

@@ -47,6 +47,15 @@ services:
       LAN_CIDRS: ${LAN_CIDRS:-}
       LAN_PUBLIC_HOSTNAME: ${LAN_PUBLIC_HOSTNAME:-}
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
+      EMAIL_RATE_LIMIT: ${EMAIL_RATE_LIMIT:-5}
+      # emails (mot de passe oublié) ; SMTP_HOST vide = aucun email envoyé
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_URL: ${APP_URL:-http://localhost:8080}
     volumes:
       # partage du NAS en LECTURE SEULE : l'application ne peut ni modifier ni supprimer un film
       - share:/media/shub:ro

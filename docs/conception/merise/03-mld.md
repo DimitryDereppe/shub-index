@@ -10,7 +10,7 @@
 | Cas dans le MCD | Règle | Ici |
 | --- | --- | --- |
 | Entité | → une table, l'identifiant devient la PK | FILM → `movie`, PERSONNE → `person`… |
-| Association **0,1 / 1,1 — 0,N** (« 1-N ») | → la PK du côté **N** migre en FK du côté **1** | CORRESPONDRE → `media_file.movie_id` ; APPARTENIR → `movie.saga_id` ; LANCER → `scan.user_id` ; POSSÉDER → `refresh_token.user_id` |
+| Association **0,1 / 1,1 — 0,N** (« 1-N ») | → la PK du côté **N** migre en FK du côté **1** | CORRESPONDRE → `media_file.movie_id` ; APPARTENIR → `movie.saga_id` ; LANCER → `scan.user_id` ; POSSÉDER → `refresh_token.user_id` ; DEMANDER → `password_reset_token.user_id` |
 | … avec **0,1** (optionnel) | → FK **nullable** | `media_file.movie_id`, `movie.saga_id`, `scan.user_id` |
 | … avec **1,1** (obligatoire) | → FK **NOT NULL** | `refresh_token.user_id` |
 | Association **0,N — 0,N** (« N-N ») | → table de liaison, PK = couple des deux FK | CLASSER → `movie_has_genre` ; PRODUIRE → `movie_studio` ; RÉALISER → `movie_director` ; JOUER → `movie_cast` ; REGARDER → `watch_history` ; METTRE EN FAVORI → `favorite` |
@@ -21,6 +21,7 @@
 ```text
 user            (id PK, email, firstname, lastname, password, role, created_at, updated_at)
 refresh_token   (id PK, token_hash, consumed, issued_at, expires_at, #user_id → user.id)
+password_reset_token (id PK, token_hash, created_at, expires_at, used_at, #user_id → user.id)
 
 genre           (id PK, name, tmdb_id, created_at, updated_at)
 saga            (id PK, name, poster_url, tmdb_id, created_at, updated_at)

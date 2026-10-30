@@ -1,6 +1,6 @@
 // Routes d'authentification (cookies httpOnly + JWT) : publiques sauf logout et me.
 import { Router } from "express";
-import { authRateLimiter } from "../middlewares/rate-limit.middleware.ts";
+import { authRateLimiter, emailRateLimiter } from "../middlewares/rate-limit.middleware.ts";
 import * as authController from "../controllers/auth.controller.ts";
 import { isConnected } from "../middlewares/access-control.middleware.ts";
 
@@ -109,3 +109,43 @@ router.post("/auth/logout", isConnected, authController.logout);
  *       "401": { $ref: "#/components/responses/Unauthorized" }
  */
 router.get("/auth/me", isConnected, authController.getMe);
+
+/**
+ * @openapi
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Authentification]
+ *     summary: Mot de passe oublié — envoie un lien de réinitialisation par email
+ *     description: Réponse identique que le compte existe ou non (pas de fuite des comptes). Lien valable 30 min, une seule fois.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+ *     responses:
+ *       "202": { description: Demande prise en compte (toujours le même message). }
+ *       "400": { $ref: "#/components/responses/BadRequest" }
+ *       "429": { description: Trop de demandes depuis cette IP (15 min). }
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Authentification]
+ *     summary: Choisir un nouveau mot de passe avec le lien reçu par email
+ *     description: Mêmes règles qu'à l'inscription ; toutes les sessions sont fermées.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, newPassword, confirm]
+ *             properties:
+ *               token: { type: string, description: "paramètre « jeton » du lien" }
+ *               newPassword: { type: string }
+ *               confirm: { type: string }
+ *     responses:
+ *       "204": { description: Mot de passe changé, cookies effacés. }
+ *       "400": { description: Lien invalide, expiré ou déjà utilisé ; ou mot de passe refusé. }
+ *       "429": { description: Trop d'échecs depuis cette IP (15 min). }
+ */
+router.post("/auth/forgot-password", emailRateLimiter, authController.forgotPassword);
+router.post("/auth/reset-password", authRateLimiter, authController.resetPassword);
