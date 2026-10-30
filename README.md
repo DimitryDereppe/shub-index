@@ -83,6 +83,23 @@ Indexation en ligne de commande (tâche planifiée, cron) :
 > refuse le cookie de connexion `Secure` ailleurs que sur `localhost`.
 > L'accès depuis d'autres appareils passe par un déploiement en HTTPS.
 
+### Les emails (mot de passe oublié)
+
+L'API envoie le lien « mot de passe oublié » avec [Nodemailer](https://nodemailer.com/).
+Sans `SMTP_HOST`, aucun email ne part (la demande répond normalement).
+
+- **En développement** : [Mailpit](https://mailpit.axllent.org/) attrape les
+  emails sans les envoyer —
+  `docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit`, puis
+  `SMTP_HOST=localhost`, `SMTP_PORT=1025`, `SMTP_SECURE=false` ; les emails
+  se lisent sur http://localhost:8025.
+- **En production avec Gmail** : activer la validation en deux étapes, créer
+  un **mot de passe d'application** (https://myaccount.google.com/apppasswords),
+  puis dans `.env` : `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`,
+  `SMTP_SECURE=true`, `SMTP_USER` (l'adresse Gmail), `SMTP_PASS` (le code de
+  16 lettres, **secret**), `MAIL_FROM` et `APP_URL` (adresse publique du site,
+  pour le lien). Recréer ensuite le conteneur `shub-api`.
+
 ### Le partage réseau
 
 `docker-compose.yml` déclare un volume NFS que Docker monte lui-même, en
