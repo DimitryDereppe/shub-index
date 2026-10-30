@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================
+  sitemap.xml - shub-index
+  ============================================
+  Un sitemap liste les URLs qu'on VEUT voir indexées par les moteurs de
+  recherche. shub-index est un catalogue privé (tout est derrière la
+  connexion, robots.txt interdit tout) : la liste est donc volontairement
+  VIDE. Un <urlset> sans <url> reste un fichier valide.
+
+  Si un jour une page publique est ajoutée (ex. une page de présentation),
+  l'ajouter ici ET l'autoriser dans robots.txt (Allow: /presentation),
+  puis retirer le noindex de cette page :
+    <url>
+      <loc>https://shub.owikiclock.duckdns.org/presentation</loc>
+      <lastmod>2026-10-27</lastmod>
+    </url>
+  ============================================
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+</urlset>

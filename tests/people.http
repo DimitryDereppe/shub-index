@@ -1,0 +1,42 @@
+# Tests des personnes et genres — npx httpyac send tests/people.http --all -e dev
+
+### Connexion (membre)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "bob@example.com", "password": "Passw0rd!" }
+
+### ✅ Autocomplétion d'un acteur (US11)
+# @name weaver
+GET {{baseUrl}}/people?q=weav&role=actor
+
+?? status == 200
+?? js response.parsedBody.some(p => p.name == "Sigourney Weaver") == true
+
+### ✅ Fiche personne + ses films du catalogue (US10)
+GET {{baseUrl}}/people/{{weaver[0].id}}
+
+?? status == 200
+?? body played.length >= 1
+
+### ❌ Recherche trop courte → 400
+GET {{baseUrl}}/people?q=a
+
+?? status == 400
+
+### ❌ Rôle inconnu → 400
+GET {{baseUrl}}/people?q=web&role=producer
+
+?? status == 400
+
+### ❌ Personne inexistante → 404
+GET {{baseUrl}}/people/999999
+
+?? status == 404
+
+### ✅ Genres avec nombre de films (US05)
+GET {{baseUrl}}/genres
+
+?? status == 200
+?? js response.parsedBody.length > 5
+?? js response.parsedBody.every(g => typeof g.movieCount == "number") == true

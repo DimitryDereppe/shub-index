@@ -1,0 +1,39 @@
+' Diagramme de séquence — lancer un film dans le VLC du visiteur (US13, US14, RG10)
+' Détails et pièges (proxy, IPv6) : analyse-besoin/clarifications.md § 9
+@startuml lecture-vlc
+autonumber
+actor Membre
+participant "Navigateur" as Client
+participant "Caddy\n(aldebaran)" as Caddy
+participant "Router\n+ isConnected\n+ isLocalNetwork" as Router
+participant "media-files.controller" as Ctrl
+participant "media-files.datamapper" as DM
+database PostgreSQL as DB
+participant "VLC\n(poste du membre)" as VLC
+participant "NAS\nsmb://192.168.1.37" as NAS
+
+Membre -> Client : ouvre la fiche d'« Alien 3 »
+note over Client : GET /api/movies/:id a renvoyé\ncanPlay = true → bouton affiché
+Membre -> Client : clique « Lire dans VLC »
+Client -> Caddy : GET /api/media-files/101/playlist (cookie)
+Caddy -> Router : + X-Forwarded-For: <IP réelle du visiteur>\n(Caddy écrase la valeur envoyée par le client)
+Router -> Router : req.ip (trust proxy = Caddy seulement)\ndans LAN_CIDRS ?
+alt IP hors réseau local (Internet, 4G…)
+  Router --> Client : 403 Forbidden
+else IP locale (192.168.1.x)
+  Router -> Ctrl : getPlaylist(req, res)
+  Ctrl -> DM : findById(101)
+  DM -> DB : SELECT … FROM media_file JOIN movie … WHERE id = $1
+  alt fichier inconnu
+    DB --> DM : aucune ligne
+    Ctrl --> Client : 404 Not Found
+  else
+    DB --> DM : { path, title, release_year }
+    Ctrl -> Ctrl : construit le .m3u\n(PLAY_URL_PREFIX + chemin encodé)
+    Ctrl --> Client : 200 audio/x-mpegurl\nContent-Disposition: attachment; "Alien 3 (1992).m3u"
+    Client -> VLC : le système ouvre le .m3u avec VLC
+    VLC -> NAS : lit smb://192.168.1.37/Shub-Niggurath/Films/…
+    NAS --> VLC : flux vidéo (ne passe pas par aldebaran)
+  end
+end
+@enduml

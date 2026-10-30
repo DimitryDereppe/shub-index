@@ -1,0 +1,53 @@
+' Diagramme de cas d'utilisation — vue globale de shub-index
+' (user stories : docs/conception/analyse-besoin/user-stories.md)
+@startuml cas-utilisation-shub-index
+left to right direction
+
+actor Visiteur
+actor Membre
+actor Admin
+actor "Tâche planifiée\n(cron de l'hôte)" as Cron
+actor "TMDB\n(API externe)" as TMDB <<système>>
+
+Visiteur <|-- Membre
+Membre <|-- Admin
+
+rectangle "shub-index" {
+  usecase "Se connecter" as UC_LOGIN
+  usecase "Se déconnecter" as UC_LOGOUT
+
+  usecase "Rechercher un film\n(titre, année, réalisateur,\nacteur, genres)" as UC_SEARCH
+  usecase "Consulter la fiche d'un film\n(+ chemin du fichier)" as UC_MOVIE
+  usecase "Consulter la fiche d'une personne" as UC_PERSON
+  usecase "Lancer le film dans VLC\n(réseau local uniquement)" as UC_VLC
+
+  usecase "Lancer une indexation" as UC_SCAN
+  usecase "Consulter l'historique\ndes indexations" as UC_SCANS
+  usecase "Identifier un fichier\n(associer / ignorer)" as UC_MATCH
+  usecase "Corriger un film" as UC_EDIT
+  usecase "Gérer les comptes" as UC_USERS
+
+  usecase "Récupérer les métadonnées\nd'un film" as UC_TMDB
+}
+
+Visiteur --> UC_LOGIN
+Membre --> UC_LOGOUT
+Membre --> UC_SEARCH
+Membre --> UC_MOVIE
+Membre --> UC_PERSON
+
+Admin --> UC_SCAN
+Admin --> UC_SCANS
+Admin --> UC_MATCH
+Admin --> UC_EDIT
+Admin --> UC_USERS
+
+Cron --> UC_SCAN
+
+UC_SEARCH <.. UC_MOVIE : <<extend>>
+UC_MOVIE <.. UC_PERSON : <<extend>>
+UC_MOVIE <.. UC_VLC : <<extend>>\n[requête depuis le LAN]
+UC_SCAN ..> UC_TMDB : <<include>>
+UC_MATCH ..> UC_TMDB : <<include>>
+UC_TMDB --> TMDB
+@enduml

@@ -1,0 +1,91 @@
+# shub-index — pile complète : BDD (shub-db), API (shub-api), client Nginx (shub-client).
+# Local :      docker compose up -d --build        → http://localhost:${CLIENT_PORT:-8080}
+# aldebaran :  docker compose -f docker-compose.yml -f docker-compose.aldebaran.yml up -d --build
+# Noms "shub-…" : sur aldebaran, les conteneurs partagent le réseau de Caddy avec bookstack-db…
+# Le NAS (kinginyellow) est monté en NFS par Docker (volume "share", en bas du fichier).
+services:
+  # ---- Couche BDD ----
+  shub-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # exécuté au PREMIER démarrage seulement (volume vide)
+      - ./src/api/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432" # 127.0.0.1 : joignable depuis la machine seulement (npm run dev, psql)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 60s # 1er démarrage : création de la base + init.sql, puis redémarrage interne
+    restart: unless-stopped
+    networks:
+      - shub-index-network
+
+  # ---- Couche API ---- (aucun port publié : on n'y accède que par le proxy, condition de RG10)
+  shub-api:
+    build:
+      context: ./src/api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@shub-db:5432/${POSTGRES_DB}
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      TMDB_TOKEN: ${TMDB_TOKEN}
+      CAST_LIMIT: ${CAST_LIMIT:-15}
+      SHARE_ROOT: /media/shub
+      SCAN_ROOTS: ${SCAN_ROOTS:-Films,Animé}
+      SCAN_EXCLUDED: ${SCAN_EXCLUDED:-Séries,Extras,Golden Collection,_À trier}
+      SHARE_UNC_PREFIX: ${SHARE_UNC_PREFIX:-}
+      PLAY_URL_PREFIX: ${PLAY_URL_PREFIX:-}
+      LAN_CIDRS: ${LAN_CIDRS:-}
+      LAN_PUBLIC_HOSTNAME: ${LAN_PUBLIC_HOSTNAME:-}
+    volumes:
+      # partage du NAS en LECTURE SEULE : l'application ne peut ni modifier ni supprimer un film
+      - share:/media/shub:ro
+    depends_on:
+      shub-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - shub-index-network
+
+  # ---- Couche client ---- (React compilé servi par Nginx, qui relaie /api en local)
+  shub-client:
+    build:
+      context: ./src/client
+    ports:
+      # 127.0.0.1 : en local, seul Cthulhu ouvre le site (en HTTP, un autre appareil ne pourrait de
+      # toute façon pas garder le cookie Secure — l'accès réseau, c'est aldebaran en HTTPS)
+      - "127.0.0.1:${CLIENT_PORT:-8080}:80"
+    depends_on:
+      - shub-api
+    restart: unless-stopped
+    networks:
+      - shub-index-network
+
+volumes:
+  pgdata:
+  # Partage du NAS (kinginyellow) monté en NFS PAR DOCKER lui-même : rien à installer ni à
+  # monter sur la machine hôte (pas de sudo, pas de nfs-common). "ro" : lecture seule côté NFS,
+  # en plus du ":ro" du service. "soft" : si le NAS ne répond plus, erreur au lieu de bloquer.
+  share:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=${NAS_ADDRESS:?NAS_ADDRESS manquant dans .env},ro,nfsvers=4,soft
+      device: ":${NAS_SHARE_PATH:?NAS_SHARE_PATH manquant dans .env}"
+
+networks:
+  # sous-réseau FIXE : on connaît ainsi l'adresse du Nginx du client (TRUST_PROXY) et celle de
+  # la passerelle par laquelle arrivent les requêtes de la machine hôte (172.28.50.1)
+  shub-index-network:
+    ipam:
+      config:
+        - subnet: 172.28.50.0/24

@@ -1,0 +1,47 @@
+# Tests des indexations — npx httpyac send tests/scans.http --all -e dev
+
+### Connexion (membre)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "bob@example.com", "password": "Passw0rd!" }
+
+### ❌ Lancer une indexation en tant que membre → 403
+POST {{baseUrl}}/scans
+
+?? status == 403
+
+### Connexion (admin)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "Passw0rd!" }
+
+### ✅ Lancer une indexation → 202 immédiatement (US20)
+# @name scan
+POST {{baseUrl}}/scans
+
+?? status == 202
+?? body status == running
+
+### ❌ Une 2ᵉ pendant que la 1ʳᵉ tourne → 409 (US25)
+POST {{baseUrl}}/scans
+
+?? status == 409
+
+### ✅ Suivi de l'indexation (US24)
+GET {{baseUrl}}/scans/{{scan.id}}
+
+?? status == 200
+?? body id == {{scan.id}}
+
+### ✅ Historique, la plus récente d'abord (US24)
+GET {{baseUrl}}/scans
+
+?? status == 200
+?? js response.parsedBody.data[0].id == {{scan.id}}
+
+### ❌ Indexation inexistante → 404
+GET {{baseUrl}}/scans/999999
+
+?? status == 404

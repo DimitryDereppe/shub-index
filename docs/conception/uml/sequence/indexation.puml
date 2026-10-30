@@ -1,0 +1,52 @@
+' Diagramme de séquence — lancement d'une indexation par l'admin (US20, US25)
+' Le traitement long (parcours du NAS + TMDB) est détaillé dans
+' activite/indexation.puml.
+@startuml indexation
+autonumber
+actor Admin
+participant "Client web" as Client
+participant "Router\n+ isConnected\n+ checkRoles(['admin'])" as Router
+participant "scans.controller" as Ctrl
+participant "scan.service" as Service
+participant "scans.datamapper" as DM
+database PostgreSQL as DB
+participant "Partage NAS\n(monté en lecture seule)" as NAS
+participant "API TMDB" as TMDB
+
+Admin -> Client : clique « Mettre à jour le catalogue »
+Client -> Router : POST /api/scans
+alt rôle ≠ admin
+  Router --> Client : 403 Forbidden
+else admin
+  Router -> Ctrl : create(req, res)
+  Ctrl -> DM : create(userId)
+  DM -> DB : INSERT INTO scan (user_id) VALUES ($1)
+  alt un scan est déjà « running »
+    DB --> DM : erreur 23505 (index unique scan_only_one_running)
+    DM --> Ctrl : ConflictError
+    Ctrl --> Client : 409 Conflict
+  else insertion acceptée
+    DB --> DM : scan { id, status: running }
+    DM --> Ctrl : scan
+    Ctrl -> Service : run(scan.id)  « lancé sans await »
+    Ctrl --> Client : 202 Accepted { id, status: running }
+
+    group en arrière-plan
+      Service -> NAS : parcours récursif des dossiers (hors exclus)
+      loop chaque fichier vidéo nouveau ou modifié
+        Service -> TMDB : recherche titre + année, puis crédits
+        TMDB --> Service : film, genres, réalisateurs, acteurs
+        Service -> DB : upsert movie / person / genre + liaisons + media_file
+      end
+      Service -> DB : retire les fichiers non vus (last_seen_at < started_at)
+      Service -> DB : UPDATE scan SET status='success', finished_at, compteurs
+    end
+  end
+end
+
+loop toutes les 3 s tant que status = running
+  Client -> Router : GET /api/scans/:id
+  Router --> Client : 200 { status, compteurs }
+end
+Client --> Admin : « Terminé : 12 ajoutés, 3 retirés »
+@enduml

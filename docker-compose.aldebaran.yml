@@ -1,0 +1,39 @@
+# Surcharge pour aldebaran (cf. docs/conception/deploiement-aldebaran.md) :
+#   docker compose -f docker-compose.yml -f docker-compose.aldebaran.yml up -d --build
+# - AUCUN port publié : tout passe par le Caddy existant (projet ~/bookstack) ;
+# - shub-api et shub-client rejoignent le réseau de Caddy (bookstack_default) ;
+# - le NAS est lu via l'automount NFS /mnt/nas d'aldebaran, PAS via le volume NFS de Docker :
+#   kinginyellow s'éteint à heures fixes. Avec le volume NFS, shub-api ne démarrerait pas
+#   tant que le NAS dort ; avec ce bind, l'API démarre toujours et une indexation lancée
+#   NAS éteint échoue proprement (garde-fou RG9, rien n'est retiré du catalogue).
+services:
+  shub-db:
+    ports: !reset []
+
+  shub-api:
+    environment:
+      SHARE_ROOT: /media/nas/Shub-Niggurath
+    volumes: !override
+      # on relie le POINT D'AUTOMOUNT (/mnt/nas) et pas un sous-dossier : relier un sous-dossier
+      # forcerait le montage au démarrage du conteneur (et échouerait NAS éteint).
+      # rslave : le conteneur voit le partage chaque fois que systemd le remonte.
+      - type: bind
+        source: /mnt/nas
+        target: /media/nas
+        read_only: true
+        bind:
+          propagation: rslave
+    networks:
+      - shub-index-network
+      - caddy
+
+  shub-client:
+    ports: !reset []
+    networks:
+      - shub-index-network
+      - caddy
+
+networks:
+  caddy:
+    name: bookstack_default
+    external: true # réseau créé par le projet bookstack, pas par celui-ci

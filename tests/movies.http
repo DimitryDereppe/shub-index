@@ -1,0 +1,149 @@
+# Tests des films — npx httpyac send tests/movies.http --all -e dev
+# Prérequis : db:seed + une indexation (npm run scan:dev).
+
+### Connexion (membre)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "bob@example.com", "password": "Passw0rd!" }
+
+?? status == 200
+
+### ✅ Recherche par titre, sans accents (US01, US12) : "asterix" trouve "Astérix"
+GET {{baseUrl}}/movies?q=asterix
+
+?? status == 200
+?? body pagination.total > 5
+?? js response.parsedBody.data.every(m => m.title.includes("Astérix")) == true
+
+### ✅ « un film de 1992 réalisé par Fincher » (US02, US03, US06)
+GET {{baseUrl}}/movies?year=1992&director=fincher
+
+?? status == 200
+?? body pagination.total == 1
+?? js response.parsedBody.data[0].directors[0].name == David Fincher
+
+### ✅ « un film avec Sigourney Weaver » (US04)
+GET {{baseUrl}}/movies?actor=weaver
+
+?? status == 200
+?? body pagination.total >= 1
+
+### ✅ Plusieurs genres combinés par ET (US05)
+GET {{baseUrl}}/movies?genre=science-fiction&genre=horreur
+
+?? status == 200
+?? js response.parsedBody.data.every(m => m.genres.includes("Horreur") && m.genres.includes("Science-Fiction")) == true
+
+### ✅ Plage d'années + tri décroissant + pagination (US02, US07)
+GET {{baseUrl}}/movies?yearFrom=1980&yearTo=1989&sort=-year&limit=5&page=1
+
+?? status == 200
+?? body pagination.limit == 5
+?? js response.parsedBody.data.every(m => m.releaseYear >= 1980 && m.releaseYear <= 1989) == true
+
+### ✅ Classification maximale (US15) : pas de film interdit aux moins de 16 ans
+GET {{baseUrl}}/movies?maxCertification=10&limit=50
+
+?? status == 200
+?? js response.parsedBody.data.every(m => ["TP", "10"].includes(m.certification)) == true
+
+### ✅ Champ vide ignoré (formulaire non rempli)
+GET {{baseUrl}}/movies?q=&year=
+
+?? status == 200
+
+### ✅ "%" saisi n'est pas un joker SQL → aucun résultat
+GET {{baseUrl}}/movies?q=%25%25%25
+
+?? status == 200
+?? body pagination.total == 0
+
+### ✅ Tentative d'injection SQL dans q → simple texte cherché, 0 résultat
+GET {{baseUrl}}/movies?q=' OR 1=1 --
+
+?? status == 200
+?? body pagination.total == 0
+
+### ❌ Tri hors liste blanche → 400
+GET {{baseUrl}}/movies?sort=password
+
+?? status == 400
+
+### ❌ Année invalide → 400
+GET {{baseUrl}}/movies?year=abc
+
+?? status == 400
+
+### ❌ Plage d'années inversée → 400
+GET {{baseUrl}}/movies?yearFrom=2000&yearTo=1990
+
+?? status == 400
+
+### ❌ limit trop grand → 400
+GET {{baseUrl}}/movies?limit=500
+
+?? status == 400
+
+### ✅ Fiche film (US08, US09) — on reprend le 1er résultat de "Alien"
+# @name alien
+GET {{baseUrl}}/movies?q=alien&year=1992
+
+?? status == 200
+
+###
+GET {{baseUrl}}/movies/{{alien.data[0].id}}
+
+?? status == 200
+?? body cast.length > 0
+?? js response.parsedBody.files[0].path.startsWith("\\\\") == true
+?? js typeof response.parsedBody.canPlay == boolean
+
+### ❌ Fiche inexistante → 404
+GET {{baseUrl}}/movies/999999
+
+?? status == 404
+
+### ❌ id non numérique → 400
+GET {{baseUrl}}/movies/abc
+
+?? status == 400
+
+### ❌ Correction par un membre → 403 (réservé aux admins)
+PATCH {{baseUrl}}/movies/{{alien.data[0].id}}
+Content-Type: application/json
+
+{ "synopsis": "modifié par un membre" }
+
+?? status == 403
+
+### Connexion (admin)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "Passw0rd!" }
+
+### ✅ Correction manuelle par l'admin (US29)
+PATCH {{baseUrl}}/movies/{{alien.data[0].id}}
+Content-Type: application/json
+
+{ "runtime": 115 }
+
+?? status == 200
+?? body runtime == 115
+
+### ❌ Champ non modifiable → 400
+PATCH {{baseUrl}}/movies/{{alien.data[0].id}}
+Content-Type: application/json
+
+{ "tmdbId": 1 }
+
+?? status == 400
+
+### ❌ Body vide → 400
+PATCH {{baseUrl}}/movies/{{alien.data[0].id}}
+Content-Type: application/json
+
+{}
+
+?? status == 400

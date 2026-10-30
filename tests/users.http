@@ -1,0 +1,79 @@
+# Tests des comptes — npx httpyac send tests/users.http --all -e dev
+
+### Connexion (membre)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "bob@example.com", "password": "Passw0rd!" }
+
+### ❌ Liste des comptes réservée aux admins → 403 (avant : visible par tout membre)
+GET {{baseUrl}}/users
+
+?? status == 403
+
+### Création d'un compte jetable pour les tests suivants
+# @name temp
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "firstname": "Jetable", "lastname": "Test", "email": "jetable-{{$randomInt 1 999999}}@example.com", "password": "Passw0rd!", "confirm": "Passw0rd!" }
+
+?? status == 201
+?? body password isFalse
+
+### Connexion (admin)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "Passw0rd!" }
+
+###
+# @name me
+GET {{baseUrl}}/auth/me
+
+### ✅ Liste des comptes, sans mot de passe (US43)
+GET {{baseUrl}}/users
+
+?? status == 200
+?? js response.parsedBody.every(u => !("password" in u)) == true
+
+### ✅ Promouvoir le compte jetable (US42)
+PATCH {{baseUrl}}/users/{{temp.id}}
+Content-Type: application/json
+
+{ "role": "admin" }
+
+?? status == 200
+?? body role == admin
+
+### ❌ Rôle inconnu (author a été retiré) → 400
+PATCH {{baseUrl}}/users/{{temp.id}}
+Content-Type: application/json
+
+{ "role": "author" }
+
+?? status == 400
+
+### ❌ Modifier son propre rôle → 409
+PATCH {{baseUrl}}/users/{{me.id}}
+Content-Type: application/json
+
+{ "role": "member" }
+
+?? status == 409
+
+### ❌ Supprimer son propre compte → 409
+DELETE {{baseUrl}}/users/{{me.id}}
+
+?? status == 409
+
+### ✅ Supprimer le compte jetable (US43)
+DELETE {{baseUrl}}/users/{{temp.id}}
+
+?? status == 204
+
+### ❌ Déjà supprimé → 404
+DELETE {{baseUrl}}/users/{{temp.id}}
+
+?? status == 404

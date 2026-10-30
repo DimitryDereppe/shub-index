@@ -1,0 +1,134 @@
+' Diagramme de classes — couches de l'API (SoC, § 3) pour le domaine catalogue
+' Les DataMappers sont des modules de fonctions (comme users.datamapper.ts),
+' représentés ici en <<module>>.
+@startuml architecture-api
+skinparam classAttributeIconSize 0
+set separator none
+hide empty members
+
+package routers {
+  class "movies.router" <<module>>
+  class "people.router" <<module>>
+  class "genres.router" <<module>>
+  class "media-files.router" <<module>>
+  class "scans.router" <<module>>
+}
+
+package controllers {
+  class "movies.controller" <<module>> {
+    +search(req, res)
+    +getOne(req, res)
+    +update(req, res)
+  }
+  class "people.controller" <<module>> {
+    +search(req, res)
+    +getOne(req, res)
+  }
+  class "genres.controller" <<module>> {
+    +getAll(req, res)
+  }
+  class "media-files.controller" <<module>> {
+    +getAll(req, res)
+    +update(req, res)
+    +getPlaylist(req, res)
+  }
+  class "scans.controller" <<module>> {
+    +create(req, res)
+    +getAll(req, res)
+    +getOne(req, res)
+  }
+}
+
+package middlewares {
+  class "access-control.middleware" <<module>> {
+    +isConnected
+    +checkRoles(roles)
+    +isLocalNetwork
+  }
+}
+
+package lib {
+  class "network" <<module>> {
+    +isLocalIp(ip, cidrs) : boolean
+  }
+  class "playlist" <<module>> {
+    +buildM3u(title, relativePath, prefix) : string
+  }
+}
+
+package services {
+  class "scan.service" <<module>> {
+    +run(scanId)
+    -walkShare(root, excluded)
+    -syncFile(fileInfo, startedAt)
+  }
+  class "filename-parser" <<module>> {
+    +parse(filename) : {title, year, certification, directors}
+  }
+  class "tmdb.client" <<module>> {
+    +searchMovie(title, year)
+    +getMovieWithCredits(tmdbId)
+  }
+  class "catalog-import.service" <<module>> {
+    +importMovie(tmdbId) : movieId
+  }
+}
+
+package models {
+  class "movies.datamapper" <<module>> {
+    +search(criteria)
+    +findById(id)
+    +findByTmdbId(tmdbId)
+    +upsertFromTmdb(movie)
+    +update(id, fields)
+  }
+  class "people.datamapper" <<module>>
+  class "genres.datamapper" <<module>>
+  class "media-files.datamapper" <<module>> {
+    +findByPath(path)
+    +create(file) / update(id, fields)
+    +deleteNotSeenSince(date)
+  }
+  class "scans.datamapper" <<module>> {
+    +create(userId)
+    +finish(id, status, counters, error)
+  }
+  class "database-client" <<module>>
+  class "transaction" <<module>> {
+    +withTransaction(fn)
+  }
+}
+
+"movies.router" --> "movies.controller"
+"people.router" --> "people.controller"
+"genres.router" --> "genres.controller"
+"media-files.router" --> "media-files.controller"
+"scans.router" --> "scans.controller"
+
+"movies.controller" --> "movies.datamapper"
+"people.controller" --> "people.datamapper"
+"genres.controller" --> "genres.datamapper"
+"media-files.controller" --> "media-files.datamapper"
+"media-files.controller" --> "catalog-import.service"
+"media-files.controller" --> "playlist"
+"movies.controller" --> "network" : canPlay
+"access-control.middleware" --> "network"
+"media-files.router" --> "access-control.middleware"
+"scans.controller" --> "scans.datamapper"
+"scans.controller" --> "scan.service"
+
+"scan.service" --> "filename-parser"
+"scan.service" --> "tmdb.client"
+"scan.service" --> "catalog-import.service"
+"scan.service" --> "media-files.datamapper"
+"scan.service" --> "scans.datamapper"
+"catalog-import.service" --> "tmdb.client"
+"catalog-import.service" --> "movies.datamapper"
+"catalog-import.service" --> "people.datamapper"
+"catalog-import.service" --> "genres.datamapper"
+"catalog-import.service" --> "transaction"
+
+"movies.datamapper" --> "database-client"
+"media-files.datamapper" --> "database-client"
+"scans.datamapper" --> "database-client"
+@enduml

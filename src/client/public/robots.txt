@@ -1,0 +1,44 @@
+# ============================================
+# robots.txt - shub-index
+# ============================================
+# Ce fichier indique aux robots d'indexation (Googlebot, Bingbot, robots IA…)
+# ce qu'ils ont le droit d'explorer. Il est servi à la RACINE du site :
+# https://shub.owikiclock.duckdns.org/robots.txt
+#
+# shub-index est un catalogue PRIVÉ (la liste des films du NAS, visible
+# seulement après connexion) : on demande à TOUS les robots de ne rien
+# explorer. Double protection avec :
+#   - la balise <meta name="robots" content="noindex, nofollow"> (index.html) ;
+#   - l'en-tête HTTP "X-Robots-Tag: noindex, nofollow" (Nginx + API).
+# Rappel : robots.txt est une POLITESSE, pas une sécurité. Un robot malveillant
+# peut l'ignorer ; ce qui protège vraiment le catalogue, c'est la connexion.
+# ============================================
+
+
+# ----- Tous les robots : rien à explorer -----
+# User-agent: * = "tous les robots" ; Disallow: / = "aucune page".
+User-agent: *
+Disallow: /
+
+
+# ----- Robots IA : même consigne, écrite explicitement -----
+# Certains robots d'entraînement de modèles ne lisent que leur propre bloc.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+
+# ----- Sitemap -----
+# Déclaré pour être complet, mais VIDE : aucune page n'est à indexer.
+Sitemap: https://shub.owikiclock.duckdns.org/sitemap.xml

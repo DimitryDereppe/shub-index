@@ -1,0 +1,56 @@
+' Diagramme de déploiement — shub-index sur aldebaran (192.168.1.35)
+' Détails : docs/conception/deploiement-aldebaran.md
+@startuml deploiement-shub-index
+actor "Membre sur Internet" as remote
+actor "Membre sur le réseau local\n(192.168.1.x) + VLC" as local
+
+node "Box / routeur\n(redirection 80/443)" as box
+
+node "NAS Shub-Niggurath — 192.168.1.37" as nas {
+  folder "/srv/nas\n(export NFS)" as nfs
+  folder "partage SMB\nShub-Niggurath" as smb
+}
+
+cloud "Internet" {
+  component "API TMDB" as tmdb
+  component "Images TMDB" as img
+  component "DuckDNS" as dns
+}
+
+node "aldebaran — 192.168.1.35" {
+  folder "/mnt/nas\n(automount NFS)" as mount
+  component "crontab\n(indexation nocturne)" as cron
+
+  node "réseau Docker bookstack_default (existant)" {
+    component "Caddy (existant)\nHTTPS Let's Encrypt\nowikiclock + shub-index" as caddy
+    component "BookStack (existant)" as bookstack
+  }
+
+  node "projet Compose shub-index" {
+    node "shub-client" {
+      component "Nginx\nbuild React statique" as client
+    }
+    node "shub-api" {
+      component "Express / TypeScript\n+ scan.service\n(port non publié)" as api
+    }
+    node "shub-db" {
+      database "PostgreSQL 16\nvolume pgdata\n(port non publié)" as db
+    }
+  }
+}
+
+remote --> box : HTTPS
+local --> box : HTTPS (nom DuckDNS)
+local ..> caddy : ou directement\n192.168.1.35
+box --> caddy : 80 / 443
+caddy --> bookstack
+caddy --> client : / (réseau bookstack_default)
+caddy --> api : /api/* (réseau bookstack_default)\nX-Forwarded-For
+api --> db : réseau interne shub-index
+nfs -- mount : NFS
+mount -- api : bind mount /mnt/nas/Shub-Niggurath:/media/shub:ro
+cron ..> api : docker compose exec shub-api npm run scan
+api --> tmdb : HTTPS (TMDB_TOKEN)
+local --> img : affiches
+local --> smb : VLC lit le fichier (playlist .m3u)
+@enduml

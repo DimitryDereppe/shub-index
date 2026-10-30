@@ -1,0 +1,58 @@
+' Diagramme d'activité — algorithme d'indexation (scan.service)
+' Règles : RG1, RG6, RG7, RG8, RG9 (analyse-besoin/clarifications.md)
+@startuml indexation-activite
+start
+:Créer la ligne scan (status = running);
+note right: refusé (409) si un scan\nest déjà en cours (RG6)
+if (Films/ et Animé/ présents\net non vides ? (RG9)) then (non)
+  :status = failed\nerror_message = "Partage non monté ou vide";
+  note right: garde-fou : sans lui, RG7\neffacerait tout le catalogue
+  stop
+endif
+:Parcourir récursivement Films/ et Animé/\n(sauf Séries, Extras, Golden Collection, _À trier);
+repeat
+  :Fichier suivant;
+  if (Extension vidéo ?\n(mkv, mp4, avi…)) then (non)
+    :ignorer;
+  else (oui)
+    if (Chemin déjà en base ?) then (non)
+      :INSERT media_file (status = pending);
+      :files_added + 1;
+    else (oui)
+      if (Taille ou date de modif. changée ?) then (oui)
+        :UPDATE media_file, status = pending;
+        :files_updated + 1;
+      else (non)
+      endif
+    endif
+    :last_seen_at = maintenant;
+    if (status = pending ?) then (oui)
+      :Extraire titre, année, classification,\nréalisateur(s) du nom (expression régulière);
+      if (Nom conforme à la convention ?) then (non)
+        :status = unmatched (RG8);
+      else (oui)
+      :Chercher sur TMDB (titre + année);
+      :Garder le résultat dont le réalisateur\ncorrespond à celui du nom de fichier;
+      if (Un résultat fiable ?) then (oui)
+        if (tmdb_id déjà en base ?) then (non)
+          :Récupérer détails + crédits\nupsert movie, genres, personnes,\nréalisateurs, N premiers rôles;
+        endif
+        :status = matched, movie_id = film;
+      else (non)
+        :status = unmatched (RG8);
+      endif
+      endif
+    endif
+  endif
+repeat while (Encore des fichiers ?) is (oui)
+->non;
+if (Erreur pendant le parcours ?) then (oui)
+  :status = failed + error_message\n**rien n'est retiré**;
+else (non)
+  :Supprimer les media_file\navec last_seen_at < started_at (RG7);
+  :files_removed = nb supprimés;
+  :status = success;
+endif
+:finished_at = maintenant;
+stop
+@enduml

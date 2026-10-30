@@ -1,0 +1,641 @@
+/*
+ * Styles de shub-index — mobile d'abord (min-width), unités relatives,
+ * couleurs en variables (thème clair/sombre selon le système), contrastes WCAG AA.
+ * Points de rupture : 40rem (≈ 640 px, tablette) et 64rem (≈ 1024 px, bureau).
+ */
+
+/* ---------- Couleurs ---------- */
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1d1b19;
+  --muted: #5b5650; /* contraste 6,9:1 sur --bg */
+  --border: #d9d4cc;
+  --accent: #1f5f8b; /* contraste 6,4:1 sur blanc */
+  --accent-text: #ffffff;
+  --danger: #a32121;
+  --focus: #e08a00;
+  --radius: 0.5rem;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141312;
+    --surface: #1f1d1b;
+    --text: #ece8e2;
+    --muted: #b3ada4;
+    --border: #3b3733;
+    --accent: #7fb8e0;
+    --accent-text: #0d1b26;
+    --danger: #f08a8a;
+    --focus: #ffb547;
+  }
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1 {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 2rem 0 0.75rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+code {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere; /* les longs chemins UNC passent à la ligne au lieu de déborder */
+}
+
+/* focus toujours visible au clavier */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* texte lu par les lecteurs d'écran mais invisible à l'œil */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+/* ---------- En-tête ---------- */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header__brand {
+  font-weight: 700;
+  font-size: 1.2rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav a {
+  text-decoration: none;
+  padding: 0.25rem 0;
+}
+
+.site-nav a.active {
+  font-weight: 700;
+  border-bottom: 2px solid currentColor;
+}
+
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.page:focus {
+  outline: none;
+}
+
+/* ---------- Formulaires ---------- */
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.field label,
+.field legend {
+  font-weight: 600;
+  padding: 0;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+}
+
+.field__help {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.field--range {
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+
+.field--range legend {
+  margin-bottom: 0.25rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--accent);
+}
+
+.button--danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.status {
+  color: var(--muted);
+}
+
+.status--error {
+  color: var(--danger);
+  font-weight: 600;
+  white-space: pre-line; /* les messages de validation de l'API tiennent sur plusieurs lignes */
+}
+
+.auth-card {
+  max-width: 26rem;
+  margin: 1rem auto;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ---------- Recherche ---------- */
+.search-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+}
+
+.genres legend {
+  margin-bottom: 0.25rem;
+}
+
+.genres__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 400 !important;
+}
+
+.genres__count {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.search-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* ---------- Cartes de films ---------- */
+.movie-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.movie-card {
+  position: relative; /* pour que le lien du titre couvre toute la carte */
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.movie-card:focus-within {
+  outline: 3px solid var(--focus);
+}
+
+.movie-card__poster {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  background: var(--border);
+}
+
+.movie-card__poster--empty {
+  display: grid;
+  place-items: center;
+  font-size: 2.5rem;
+}
+
+.movie-card__body {
+  padding: 0.6rem 0.75rem 0.8rem;
+}
+
+.movie-card__title {
+  font-size: 1rem;
+  margin: 0 0 0.25rem;
+}
+
+.movie-card__title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.movie-card__title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.movie-card__title a:focus-visible {
+  outline: none; /* le contour est porté par la carte entière (:focus-within) */
+}
+
+.movie-card__meta,
+.movie-card__genres,
+.movie-card__missing {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.movie-card__missing {
+  color: var(--danger);
+}
+
+.badge {
+  display: inline-block;
+  min-width: 2rem;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: #2e6b2e;
+}
+
+.badge--cert-10 { background: #6a5a00; }
+.badge--cert-12 { background: #8a4b00; }
+.badge--cert-16 { background: #9a2f00; }
+.badge--cert-18 { background: #8b1010; }
+
+.results {
+  margin-top: 1rem;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+/* ---------- Fiche film ---------- */
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.movie__layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.movie__poster {
+  width: 100%;
+  max-width: 16rem;
+  border-radius: var(--radius);
+}
+
+.movie__year,
+.movie__original {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.movie__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.file-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.file-list__item {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.file-list__size {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.file-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cast-list {
+  display: grid;
+  gap: 0.25rem 1rem;
+  padding-left: 1.25rem;
+}
+
+.cast-list__character {
+  color: var(--muted);
+}
+
+.admin-box {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.admin-box h2 {
+  margin-top: 0;
+}
+
+/* ---------- Mon compte ---------- */
+.account-section {
+  margin-top: 2rem;
+}
+
+.account-section--danger {
+  padding: 1rem;
+  border: 2px solid var(--danger);
+  border-radius: var(--radius);
+}
+
+.account-section--danger h2 {
+  margin-top: 0;
+}
+
+.account-form {
+  max-width: 28rem;
+}
+
+.movie-grid__item {
+  display: grid;
+  grid-template-rows: 1fr auto; /* la carte prend la place, les boutons restent en bas */
+  gap: 0.5rem;
+}
+
+.movie-grid__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* ---------- Administration ---------- */
+.table-wrapper {
+  overflow-x: auto; /* sur mobile, le tableau défile horizontalement au lieu d'écraser les colonnes */
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table__error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.file-admin-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1rem;
+}
+
+.file-admin {
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.file-admin__name {
+  font-size: 1rem;
+  margin: 0 0 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.file-admin__path {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.file-admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inline-form input {
+  width: 8rem;
+}
+
+/* ---------- Tablette ---------- */
+@media (min-width: 40rem) {
+  .movie-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .search-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field--wide,
+  .search-form__actions {
+    grid-column: 1 / -1;
+  }
+
+  .movie__layout {
+    grid-template-columns: 14rem 1fr;
+    align-items: start;
+  }
+
+  .cast-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .file-list__item {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .file-list__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Bureau ---------- */
+@media (min-width: 64rem) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .movie-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .search-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .movie__layout {
+    grid-template-columns: 16rem 1fr;
+  }
+
+  .cast-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* animations réduites si l'utilisateur l'a demandé au système */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

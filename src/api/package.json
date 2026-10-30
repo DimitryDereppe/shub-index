@@ -1,0 +1,58 @@
+{
+  "name": "shub-index",
+  "version": "0.1.0",
+  "description": "API de recherche dans le catalogue de films du NAS (Express + TypeScript + PostgreSQL en SQL brut).",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "======= Pour la prod =======": "========================",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "scan": "node dist/src/scan.cli.js",
+    "======= Pour le dev ========": "========================",
+    "dev": "tsx --watch --env-file=.env index.ts",
+    "scan:dev": "tsx --env-file=.env src/scan.cli.ts",
+    "backfill": "node dist/src/backfill-sagas.cli.js",
+    "test": "tsx --test tests/unit/*.test.ts",
+    "test:spec": "tsx --test --env-file=./tests/config/.env.test --import ./tests/config/global-setup.ts --experimental-test-isolation=none ./src/**/*.spec.test.ts",
+    "test:spec:me": "tsx --test --env-file=./tests/config/.env.test --import ./tests/config/global-setup.ts --experimental-test-isolation=none ./src/controllers/me.controller.spec.test.ts",
+    "======= Pour la BDD ========": "========================",
+    "db:init": "psql \"$DATABASE_URL\" -f database/init.sql",
+    "db:seed": "tsx --env-file=.env ./src/models/seeding.ts",
+    "db:reset": "npm run db:init && npm run db:seed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-xss-sanitizer": "^2.0.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/express-xss-sanitizer": "^2.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "axios": "^1.21.0",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
+  }
+}

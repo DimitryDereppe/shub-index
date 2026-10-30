@@ -1,0 +1,90 @@
+# Tests de l'authentification — à lancer avec httpyac (CLI ou extension VS Code) :
+#   npx httpyac send tests/auth.http --all -e dev
+# Les lignes "?? …" sont des assertions vérifiées par httpyac.
+# Comptes créés par `npm run db:seed` : alice@example.com (admin), bob@example.com (membre).
+
+### ❌ Accès sans être connecté → 401
+GET {{baseUrl}}/auth/me
+?? status == 401
+
+### ❌ Mauvais mot de passe → 401 (même message qu'un email inconnu)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "mauvais" }
+
+?? status == 401
+?? body error == Email ou mot de passe incorrect
+
+### ❌ Email inconnu → 401, message identique
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "personne@example.com", "password": "Passw0rd!" }
+
+?? status == 401
+?? body error == Email ou mot de passe incorrect
+
+### ❌ JSON mal formé → 400 (et pas 500)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": 
+
+?? status == 400
+
+### ✅ Connexion → 200 + cookies httpOnly SameSite=Strict
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "Passw0rd!" }
+
+?? status == 200
+?? header set-cookie includes HttpOnly
+?? header set-cookie includes SameSite=Strict
+
+### ✅ Profil connecté (id + rôle, jamais le mot de passe)
+GET {{baseUrl}}/auth/me
+
+?? status == 200
+?? body role == admin
+?? body password isFalse
+
+### ❌ Inscription : confirmation différente → 400
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "firstname": "Test", "lastname": "Http", "email": "test-http@example.com", "password": "Passw0rd!", "confirm": "autre" }
+
+?? status == 400
+
+### ❌ Inscription : email déjà pris → 409
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "firstname": "Bob", "lastname": "Bis", "email": "bob@example.com", "password": "Passw0rd!", "confirm": "Passw0rd!" }
+
+?? status == 409
+
+### ✅ Rotation du refresh token → 200
+POST {{baseUrl}}/auth/refresh
+
+?? status == 200
+
+### ✅ Déconnexion → 204
+POST {{baseUrl}}/auth/logout
+
+?? status == 204
+
+### ❌ Après déconnexion, plus d'accès → 401
+GET {{baseUrl}}/auth/me
+
+?? status == 401
+
+### ❌ Faux jeton JWT → 401 (et pas 500)
+# (en dernier : httpyac garde ce cookie posé à la main pour les requêtes suivantes)
+GET {{baseUrl}}/auth/me
+Cookie: accessToken=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjF9.faux
+
+?? status == 401
+?? body error == Token invalide

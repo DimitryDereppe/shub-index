@@ -1,0 +1,105 @@
+# Tests des fichiers vidéo — npx httpyac send tests/media-files.http --all -e dev
+# Pour la playlist : LAN_CIDRS doit contenir l'IP de la machine qui lance les tests
+# (ex. 127.0.0.1/32 en local), sinon le cas ✅ renvoie 403.
+# Les PATCH ont besoin d'au moins UN fichier non identifié, et le laissent associé à « Basil,
+# détective privé ». Pour rejouer : UPDATE media_file SET status='unmatched', movie_id=NULL WHERE filename LIKE 'Basile%';
+
+### Connexion (membre)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "bob@example.com", "password": "Passw0rd!" }
+
+### ❌ Liste réservée aux admins → 403
+GET {{baseUrl}}/media-files
+
+?? status == 403
+
+### Un film du catalogue, pour avoir l'id d'un de ses fichiers
+# @name alien
+GET {{baseUrl}}/movies?q=alien&year=1992
+
+###
+# @name alienDetail
+GET {{baseUrl}}/movies/{{alien.data[0].id}}
+
+### ✅ Playlist VLC depuis le réseau local (US13)
+GET {{baseUrl}}/media-files/{{alienDetail.files[0].id}}/playlist
+
+?? status == 200
+?? header content-type includes audio/x-mpegurl
+?? header content-disposition includes attachment
+?? body startsWith #EXTM3U
+
+### ❌ Un en-tête X-Forwarded-For forgé ne donne pas l'accès (US14)
+# (à lancer depuis une IP hors LAN_CIDRS : la réponse doit rester 403)
+GET {{baseUrl}}/media-files/{{alienDetail.files[0].id}}/playlist
+X-Forwarded-For: 192.168.1.20
+
+### ❌ Fichier inexistant → 404
+GET {{baseUrl}}/media-files/999999/playlist
+
+?? status == 404
+
+### Connexion (admin)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "Passw0rd!" }
+
+### ✅ Fichiers non identifiés (US26)
+# @name unmatched
+GET {{baseUrl}}/media-files?status=unmatched
+
+?? status == 200
+?? js response.parsedBody.data.every(f => f.status == "unmatched") == true
+
+### ❌ Statut inconnu → 400
+GET {{baseUrl}}/media-files?status=perdu
+
+?? status == 400
+
+### ✅ Ignorer un fichier (US28) — on prend le 1er non identifié
+PATCH {{baseUrl}}/media-files/{{unmatched.data[0].id}}
+Content-Type: application/json
+
+{ "status": "ignored" }
+
+?? status == 200
+?? body status == ignored
+?? body movieId == null
+
+### ❌ Identifiant TMDB inexistant → 400
+PATCH {{baseUrl}}/media-files/{{unmatched.data[0].id}}
+Content-Type: application/json
+
+{ "tmdbId": 999999999 }
+
+?? status == 400
+
+### ❌ Les deux formes mélangées → 400
+PATCH {{baseUrl}}/media-files/{{unmatched.data[0].id}}
+Content-Type: application/json
+
+{ "tmdbId": 9994, "status": "ignored" }
+
+?? status == 400
+
+### ✅ Associer à la main ce même fichier à un film TMDB (US27)
+# 9994 = « Basil, détective privé » : le seul fichier du NAS que l'indexation ne trouve pas
+# (le nom de fichier écrit « Basile »)
+PATCH {{baseUrl}}/media-files/{{unmatched.data[0].id}}
+Content-Type: application/json
+
+{ "tmdbId": 9994 }
+
+?? status == 200
+?? body status == matched
+
+### ❌ Fichier inexistant → 404
+PATCH {{baseUrl}}/media-files/999999
+Content-Type: application/json
+
+{ "status": "ignored" }
+
+?? status == 404

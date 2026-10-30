@@ -1,0 +1,33 @@
+' Diagramme de séquence — recherche multicritère (US01 → US07)
+' Exemple : GET /api/movies?director=cameron&genre=horreur
+@startuml recherche-film
+autonumber
+actor Membre
+participant "Client web" as Client
+participant "Router\n+ isConnected" as Router
+participant "movies.controller" as Ctrl
+participant "movies.datamapper" as DM
+database PostgreSQL as DB
+
+Membre -> Client : saisit « cameron » + coche « Horreur »
+Client -> Router : GET /api/movies?director=cameron&genre=horreur\n(cookie accessToken)
+alt pas de cookie / jeton expiré
+  Router --> Client : 401 Unauthorized
+else jeton valide
+  Router -> Ctrl : search(req, res)
+  Ctrl -> Ctrl : valide la query string (schéma Zod)
+  alt paramètres invalides (ex. year=abc)
+    Ctrl --> Client : 400 Bad Request
+  else paramètres valides
+    Ctrl -> DM : search({ director, genres, page, limit, sort })
+    DM -> DM : construit WHERE avec un EXISTS par critère\n(valeurs en $1, $2… ; tri depuis une liste blanche)
+    DM -> DB : SELECT … (requête paramétrée)
+    DB --> DM : lignes
+    DM -> DB : SELECT count(*) … (mêmes critères)
+    DB --> DM : total
+    DM --> Ctrl : { rows, total }
+    Ctrl --> Client : 200 { data, pagination }
+    Client --> Membre : affiche les résultats (affiche, titre, année, réalisateur)
+  end
+end
+@enduml
