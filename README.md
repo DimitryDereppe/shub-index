@@ -89,6 +89,17 @@ lecture seule, à partir de `NAS_ADDRESS` et `NAS_SHARE_PATH` (`.env`).
 production : aucun port publié, réseau du reverse proxy, partage lu via un
 automount de l'hôte (utile si le NAS s'éteint la nuit).
 
+### Dépannage réseau
+
+| Symptôme | Cause probable | Solution |
+| --- | --- | --- |
+| Le site **expire** (`ERR_CONNECTION_TIMED_OUT`) sur un appareil de la maison, alors qu'il répond depuis un autre | l'appareil est sur le **Wi-Fi invité** de la box : ce réseau est isolé, il ne peut pas revenir vers l'IP publique de la maison | connecter l'appareil au Wi-Fi principal (et « oublier » le réseau invité) |
+| Pas de bouton VLC ni de chemins de fichiers, alors qu'on est à la maison | l'API ne voit pas la requête comme locale : l'IP publique de la box n'est pas déclarée, ou un proxy n'est pas de confiance | renseigner `LAN_PUBLIC_HOSTNAME` (nom DNS de la box) et `TRUST_PROXY` (adresse du seul reverse proxy) |
+| Pas de bouton VLC **via le VPN** (WireGuard en tunnel partiel) | le nom du site pointe vers l'IP publique, qui ne passe pas par le tunnel : la requête part par la 4G | ajouter la plage du VPN à `LAN_CIDRS`, et sur l'appareil une ligne `hosts` qui associe le nom du site à l'adresse locale du serveur |
+
+Hors réseau local, c'est voulu : l'API ne renvoie **aucun chemin** du NAS
+(`files: []`) et la fiche affiche seulement un message.
+
 ## Installation sans Docker (développement)
 
 ```bash
