@@ -116,6 +116,8 @@ automount de l'hôte (utile si le NAS s'éteint la nuit).
 | Pas de bouton VLC ni de chemins de fichiers, alors qu'on est à la maison | l'API ne voit pas la requête comme locale : l'IP publique de la box n'est pas déclarée, ou un proxy n'est pas de confiance | renseigner `LAN_PUBLIC_HOSTNAME` (nom DNS de la box) et `TRUST_PROXY` (adresse du seul reverse proxy) |
 | Pas de bouton VLC **via le VPN** (WireGuard en tunnel partiel) | le nom du site pointe vers l'IP publique, qui ne passe pas par le tunnel : la requête part par la 4G | ajouter la plage du VPN à `LAN_CIDRS`, et sur l'appareil une ligne `hosts` qui associe le nom du site à l'adresse locale du serveur |
 
+| L'API ne redémarre plus après un `docker compose up` (`cannot stop container … did not receive an exit event`) | le partage NFS est monté dans `shub-api` et le NAS est **éteint** : Docker ne peut pas le démonter | rallumer le NAS ; le conteneur se libère, puis relancer `up -d shub-api`. Ne recréer `shub-api` que NAS allumé |
+
 Hors réseau local, c'est voulu : l'API ne renvoie **aucun chemin** du NAS
 (`files: []`) et la fiche affiche seulement un message.
 

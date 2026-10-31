@@ -3,7 +3,7 @@
 # ============================================
 # Ce fichier indique aux robots d'indexation (Googlebot, Bingbot, robots IA…)
 # ce qu'ils ont le droit d'explorer. Il est servi à la RACINE du site :
-# https://shub.owikiclock.duckdns.org/robots.txt
+# https://shub-niggurath-index.duckdns.org/robots.txt
 #
 # shub-index est un catalogue PRIVÉ (la liste des films du NAS, visible
 # seulement après connexion) : on demande à TOUS les robots de ne rien
@@ -41,4 +41,4 @@ Disallow: /
 
 # ----- Sitemap -----
 # Déclaré pour être complet, mais VIDE : aucune page n'est à indexer.
-Sitemap: https://shub.owikiclock.duckdns.org/sitemap.xml
+Sitemap: https://shub-niggurath-index.duckdns.org/sitemap.xml
