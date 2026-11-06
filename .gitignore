@@ -150,4 +150,5 @@ vite.config.ts.timestamp-*
 
 # Notes propres à mon installation : gardées en local, hors du dépôt public
 CARNET-DE-BORD-SHUB-INDEX.md
+CLAUDE.md
 docs/conception/deploiement-aldebaran.md
