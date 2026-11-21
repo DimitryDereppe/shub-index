@@ -71,12 +71,21 @@ function PrimeVideoForm({ type, onSearch }: { type: MediaType; onSearch: (params
     onSearch(params); // nouvelle recherche → retour en page 1
   }
 
+  // changer de type relance aussitôt la recherche (séries → séries proposées) ; seul le titre est gardé,
+  // les autres filtres (genres surtout) n'ont pas le même sens d'un type à l'autre
+  function handleTypeChange(newType: MediaType) {
+    setFormType(newType);
+    const params = new URLSearchParams(newType === "tv" ? { type: newType } : {});
+    if (withTitle) params.set("q", title.trim());
+    onSearch(params);
+  }
+
   return (
     // onReset : « Vider les champs » vide aussi le titre → les champs masqués reviennent
     <form onSubmit={handleSubmit} onReset={() => setTitle("")} className="search-form" role="search">
       <div className="field">
         <label htmlFor="type">Type</label>
-        <select id="type" name="type" value={formType} onChange={(event) => setFormType(event.target.value as MediaType)}>
+        <select id="type" name="type" value={formType} onChange={(event) => handleTypeChange(event.target.value as MediaType)}>
           <option value="movie">Films</option>
           <option value="tv">Séries</option>
         </select>
