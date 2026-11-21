@@ -367,6 +367,8 @@ textarea {
   color: var(--danger);
 }
 
+.badge--nas { background: var(--accent); color: var(--accent-text); }
+
 .badge {
   display: inline-block;
   min-width: 2rem;

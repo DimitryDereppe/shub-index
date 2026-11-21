@@ -4,7 +4,8 @@
  * Arbre des routes :
  *   /connexion, /inscription,
  *   /mot-de-passe-oublie, /reinitialiser  publiques
- *   /, /films/:id, /personnes/:id, /compte  membre connecté (RequireAuth)
+ *   /, /films/:id, /personnes/:id,
+ *   /prime-video, /compte                 membre connecté (RequireAuth)
  *   /admin/indexations, /admin/fichiers,
  *   /admin/comptes                        admin (RequireAdmin)
  */
@@ -22,6 +23,7 @@ import { LoginPage } from "./pages/LoginPage.tsx";
 import { MoviePage } from "./pages/MoviePage.tsx";
 import { NotFoundPage } from "./pages/NotFoundPage.tsx";
 import { PersonPage } from "./pages/PersonPage.tsx";
+import { PrimeVideoPage } from "./pages/PrimeVideoPage.tsx";
 import { RegisterPage } from "./pages/RegisterPage.tsx";
 import { SearchPage } from "./pages/SearchPage.tsx";
 import { MediaFilesPage } from "./pages/admin/MediaFilesPage.tsx";
@@ -42,6 +44,7 @@ const router = createBrowserRouter([
           { path: "/", element: <SearchPage /> },
           { path: "/films/:id", element: <MoviePage /> },
           { path: "/personnes/:id", element: <PersonPage /> },
+          { path: "/prime-video", element: <PrimeVideoPage /> },
           { path: "/compte", element: <AccountPage /> },
           {
             element: <RequireAdmin />,

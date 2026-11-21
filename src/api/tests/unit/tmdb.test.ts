@@ -7,8 +7,12 @@ import assert from "node:assert/strict";
 import {
   certificationOf,
   directorsMatch,
+  discoverParams,
   frenchCertificationOf,
+  isOnPrimeVideo,
+  matchesFilters,
   normalizeName,
+  posterUrlOf,
   sagaOf,
   studiosOf,
   titleVariants,
@@ -222,5 +226,112 @@ describe("titleVariants", () => {
 
   it("ne garde pas de variante trop courte ni de doublon", () => {
     assert.deepEqual(titleVariants("Ys - X"), ["Ys - X", "Ys X"]);
+  });
+});
+
+describe("isOnPrimeVideo", () => {
+  // forme réelle de /movie/:id/watch/providers (réduite)
+  const prime = { provider_id: 119, provider_name: "Amazon Prime Video" };
+
+  it("vrai si Prime Video est dans l'abonnement en France", () => {
+    assert.equal(isOnPrimeVideo({ results: { FR: { flatrate: [prime] } } }), true);
+  });
+
+  it("vrai pour la formule avec pubs (2100)", () => {
+    assert.equal(
+      isOnPrimeVideo({ results: { FR: { flatrate: [{ provider_id: 2100, provider_name: "Amazon Prime Video with Ads" }] } } }),
+      true
+    );
+  });
+
+  it("faux pour une chaîne Amazon payante en plus (HBO Max Amazon Channel)", () => {
+    assert.equal(
+      isOnPrimeVideo({ results: { FR: { flatrate: [{ provider_id: 1825, provider_name: "HBO Max Amazon Channel" }] } } }),
+      false
+    );
+  });
+
+  it("faux si Prime Video ne le propose que dans un autre pays", () => {
+    assert.equal(isOnPrimeVideo({ results: { US: { flatrate: [prime] } } }), false);
+  });
+
+  it("faux sans aucune donnée", () => {
+    assert.equal(isOnPrimeVideo({}), false);
+  });
+});
+
+describe("posterUrlOf", () => {
+  it("complète le chemin TMDB, null sans affiche", () => {
+    assert.equal(posterUrlOf("/abc.jpg"), "https://image.tmdb.org/t/p/w342/abc.jpg");
+    assert.equal(posterUrlOf(null), null);
+  });
+});
+
+describe("discoverParams", () => {
+  it("sans critère : Prime Video en France, abonnement seulement, par popularité", () => {
+    assert.deepEqual(discoverParams("movie", { genreIds: [], sort: "popularity" }), {
+      watch_region: "FR",
+      with_watch_providers: "119|2100",
+      with_watch_monetization_types: "flatrate",
+      sort_by: "popularity.desc",
+    });
+  });
+
+  it("films : années, genres (ET), personnes, classification TP → U", () => {
+    const params = discoverParams("movie", {
+      year: 1999,
+      yearFrom: 1990,
+      yearTo: 2000,
+      genreIds: [28, 878],
+      castId: 6384,
+      crewId: 9339,
+      maxCertification: "TP",
+      sort: "-year",
+    });
+    assert.equal(params.primary_release_year, "1999");
+    assert.equal(params["primary_release_date.gte"], "1990-01-01");
+    assert.equal(params["primary_release_date.lte"], "2000-12-31");
+    assert.equal(params.with_genres, "28,878");
+    assert.equal(params.with_cast, "6384");
+    assert.equal(params.with_crew, "9339");
+    assert.equal(params.certification_country, "FR");
+    assert.equal(params["certification.lte"], "U");
+    assert.equal(params.sort_by, "primary_release_date.desc");
+  });
+
+  it("séries : dates de 1re diffusion, tri par nom, ni personnes ni classification", () => {
+    const params = discoverParams("tv", { year: 2022, genreIds: [], castId: 1, maxCertification: "12", sort: "title" });
+    assert.equal(params.first_air_date_year, "2022");
+    assert.equal(params.sort_by, "name.asc");
+    assert.equal(params.with_cast, undefined);
+    assert.equal(params["certification.lte"], undefined);
+  });
+
+  it("tri par note : exige un minimum de votes", () => {
+    assert.equal(discoverParams("movie", { genreIds: [], sort: "rating" })["vote_count.gte"], "200");
+  });
+});
+
+describe("matchesFilters", () => {
+  const reacher = { id: 108978, name: "Reacher", first_air_date: "2022-02-03", genre_ids: [10759, 80, 18], overview: "", poster_path: null };
+
+  it("vrai sans critère", () => {
+    assert.equal(matchesFilters(reacher, { genreIds: [] }), true);
+  });
+
+  it("vérifie la période (série : 1re diffusion)", () => {
+    assert.equal(matchesFilters(reacher, { yearFrom: 2020, yearTo: 2023, genreIds: [] }), true);
+    assert.equal(matchesFilters(reacher, { yearTo: 2021, genreIds: [] }), false);
+  });
+
+  it("exige TOUS les genres", () => {
+    assert.equal(matchesFilters(reacher, { genreIds: [80, 18] }), true);
+    assert.equal(matchesFilters(reacher, { genreIds: [80, 16] }), false);
+  });
+
+  it("date inconnue : écarté seulement si une période est demandée", () => {
+    const undated = { ...reacher, first_air_date: "" };
+    assert.equal(matchesFilters(undated, { genreIds: [] }), true);
+    assert.equal(matchesFilters(undated, { yearFrom: 2000, genreIds: [] }), false);
   });
 });

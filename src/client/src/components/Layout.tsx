@@ -34,6 +34,9 @@ export function Layout() {
                 </NavLink>
               </li>
               <li>
+                <NavLink to="/prime-video">Prime Video</NavLink>
+              </li>
+              <li>
                 <NavLink to="/compte">Mon compte</NavLink>
               </li>
               {user.role === "admin" && (

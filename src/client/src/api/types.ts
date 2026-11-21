@@ -72,6 +72,19 @@ export interface MovieDetail {
   files: Array<{ id: number; path: string; sizeBytes: number }>;
 }
 
+/** Film ou série inclus dans Prime Video en France (GET /prime-video). */
+export interface PrimeVideoTitle {
+  type: "movie" | "tv";
+  tmdbId: number;
+  title: string;
+  originalTitle: string | null;
+  releaseYear: number | null; // série : année de la 1re diffusion
+  synopsis: string | null;
+  posterUrl: string | null;
+  movieId: number | null; // fiche du catalogue, null si le film n'y est pas (toujours null pour une série)
+  onNas: boolean;
+}
+
 /** Un film de l'historique (GET /me/history). */
 export interface WatchedMovie extends MovieSummary {
   watchedAt: string;

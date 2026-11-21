@@ -10,6 +10,7 @@ import { router as meRouter } from "./me.router.ts";
 import { router as mediaFilesRouter } from "./media-files.router.ts";
 import { router as moviesRouter } from "./movies.router.ts";
 import { router as peopleRouter } from "./people.router.ts";
+import { router as primeVideoRouter } from "./prime-video.router.ts";
 import { router as scansRouter } from "./scans.router.ts";
 import { router as usersRouter } from "./users.router.ts";
 
@@ -44,6 +45,7 @@ router.use("/docs", swaggerUi.serve, swaggerUi.setup(specification));
 router.use(meRouter);
 router.use(moviesRouter);
 router.use(peopleRouter);
+router.use(primeVideoRouter);
 router.use(mediaFilesRouter);
 router.use(scansRouter);
 router.use(usersRouter);

@@ -228,6 +228,18 @@ const moviesDataMapper = {
     return result.rows;
   },
 
+  /** Films du catalogue parmi ces ids TMDB (recherche Prime Video) : id interne + présence sur le NAS. */
+  async findByTmdbIds(tmdbIds: number[]): Promise<Array<{ id: number; tmdbId: number; available: boolean }>> {
+    const result = await pool.query(
+      `SELECT m.id, m.tmdb_id AS "tmdbId",
+              EXISTS (SELECT 1 FROM media_file f WHERE f.movie_id = m.id) AS available
+       FROM movie m
+       WHERE m.tmdb_id = ANY($1::int[])`,
+      [tmdbIds]
+    );
+    return result.rows;
+  },
+
   async findIdByTmdbId(tmdbId: number, db: Queryable = pool): Promise<number | null> {
     const result = await db.query(`SELECT id FROM movie WHERE tmdb_id = $1`, [tmdbId]);
     return result.rows[0]?.id ?? null;

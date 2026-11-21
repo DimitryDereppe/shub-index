@@ -5,6 +5,9 @@
  * Mêmes appels que organize.py sur le NAS :
  *   GET /search/movie?query=…&year=…
  *   GET /movie/:id?append_to_response=credits,release_dates
+ * Plus, pour la recherche Prime Video (films absents du NAS compris) :
+ *   GET /discover/movie?watch_region=FR&with_watch_providers=…
+ *   GET /movie/:id/watch/providers
  * Authentification : jeton "lecture" dans l'en-tête Authorization (Bearer).
  */
 import { config } from "../../config.ts";
@@ -40,6 +43,40 @@ export interface TmdbMovieDetails {
   release_dates?: {
     results: Array<{ iso_3166_1: string; release_dates: Array<{ certification: string }> }>;
   };
+}
+
+/** Film ou série dans une liste TMDB (recherche, découverte). Les séries ont name au lieu de title. */
+export interface TmdbListItem {
+  id: number;
+  title?: string; // film
+  original_title?: string;
+  release_date?: string;
+  name?: string; // série
+  original_name?: string;
+  first_air_date?: string;
+  genre_ids?: number[];
+  overview: string;
+  poster_path: string | null;
+}
+
+/** "movie" = films, "tv" = séries (mêmes mots que dans les URL TMDB). */
+export type MediaType = "movie" | "tv";
+export const MEDIA_TYPES: MediaType[] = ["movie", "tv"];
+
+/** Une page de résultats TMDB (20 films, 500 pages au maximum). */
+export interface TmdbPage<T> {
+  page: number;
+  results: T[];
+  total_pages: number;
+  total_results: number;
+}
+
+/**
+ * Plateformes où voir le film, par pays (données JustWatch fournies par TMDB).
+ * flatrate = inclus dans l'abonnement ; rent / buy = location / achat.
+ */
+export interface TmdbWatchProviders {
+  results?: Record<string, { link?: string; flatrate?: Array<{ provider_id: number; provider_name: string }> }>;
 }
 
 /** Film prêt à être enregistré en base (cf. catalog-import.service.ts). */
@@ -124,6 +161,118 @@ export async function searchMovie(title: string, year: number | null): Promise<T
 /** Fiche complète d'un film : genres, crédits (réalisateurs, acteurs) et classifications. */
 export async function getMovieWithCredits(tmdbId: number): Promise<TmdbMovieDetails> {
   return tmdbGet<TmdbMovieDetails>(`/movie/${tmdbId}`, { append_to_response: "credits,release_dates" });
+}
+
+// ---------------------------------------------------------------------------
+// Disponibilité sur Prime Video
+// ---------------------------------------------------------------------------
+
+/** Pays de la recherche Prime Video (le catalogue change d'un pays à l'autre). */
+export const WATCH_REGION = "FR";
+
+/** Prime Video inclus dans l'abonnement : 119 = Amazon Prime Video, 2100 = formule avec pubs. */
+export const PRIME_VIDEO_PROVIDER_IDS = [119, 2100];
+
+/** Critères de la recherche Prime Video (les mêmes que la recherche du catalogue). */
+export interface PrimeVideoFilters {
+  year?: number;
+  yearFrom?: number;
+  yearTo?: number;
+  genreIds: number[]; // ids TMDB : le titre doit avoir TOUS ces genres
+  castId?: number; // films seulement (TMDB ne filtre pas les séries par personne)
+  crewId?: number; // films seulement ; « crew » = toute l'équipe technique (production comprise)
+  maxCertification?: Certification; // films seulement (pas de classification des séries sur /discover)
+  sort: PrimeVideoSort;
+}
+
+/** Tris proposés → valeur sort_by de TMDB, pour les films et pour les séries. */
+export const PRIME_VIDEO_SORTS = {
+  popularity: { movie: "popularity.desc", tv: "popularity.desc" },
+  "-year": { movie: "primary_release_date.desc", tv: "first_air_date.desc" },
+  year: { movie: "primary_release_date.asc", tv: "first_air_date.asc" },
+  rating: { movie: "vote_average.desc", tv: "vote_average.desc" },
+  title: { movie: "title.asc", tv: "name.asc" },
+} as const;
+export type PrimeVideoSort = keyof typeof PRIME_VIDEO_SORTS;
+
+// classification française « TP » = « U » chez TMDB ; les autres sont identiques
+const TMDB_FR_CERTIFICATIONS: Record<Certification, string> = { TP: "U", "10": "10", "12": "12", "16": "16", "18": "18" };
+
+// en dessous, une note moyenne ne veut rien dire (un seul vote à 10/10 passerait en tête)
+const MIN_VOTES_FOR_RATING_SORT = "200";
+
+/**
+ * Paramètres de /discover pour Prime Video en France + les critères choisis.
+ * Fonction pure (testée) : discoverPrimeVideo se contente de l'appeler.
+ */
+export function discoverParams(type: MediaType, filters: PrimeVideoFilters): Record<string, string> {
+  const dateField = type === "movie" ? "primary_release_date" : "first_air_date";
+  const params: Record<string, string> = {
+    watch_region: WATCH_REGION,
+    with_watch_providers: PRIME_VIDEO_PROVIDER_IDS.join("|"), // "|" = OU pour TMDB
+    with_watch_monetization_types: "flatrate", // abonnement seulement, pas la location ni l'achat
+    sort_by: PRIME_VIDEO_SORTS[filters.sort][type],
+  };
+
+  if (filters.year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = String(filters.year);
+  if (filters.yearFrom) params[`${dateField}.gte`] = `${filters.yearFrom}-01-01`;
+  if (filters.yearTo) params[`${dateField}.lte`] = `${filters.yearTo}-12-31`;
+  if (filters.genreIds.length > 0) params.with_genres = filters.genreIds.join(","); // "," = ET pour TMDB
+  if (filters.sort === "rating") params["vote_count.gte"] = MIN_VOTES_FOR_RATING_SORT;
+
+  if (type === "movie") {
+    if (filters.castId) params.with_cast = String(filters.castId);
+    if (filters.crewId) params.with_crew = String(filters.crewId);
+    if (filters.maxCertification) {
+      params.certification_country = "FR";
+      params["certification.lte"] = TMDB_FR_CERTIFICATIONS[filters.maxCertification];
+    }
+  }
+  return params;
+}
+
+/** Films ou séries inclus dans Prime Video en France, filtrés et triés. */
+export async function discoverPrimeVideo(
+  type: MediaType,
+  filters: PrimeVideoFilters,
+  page: number
+): Promise<TmdbPage<TmdbListItem>> {
+  return tmdbGet<TmdbPage<TmdbListItem>>(`/discover/${type}`, { ...discoverParams(type, filters), page: String(page) });
+}
+
+/** Recherche de films ou de séries par titre, une page de résultats complets (affiche, résumé). */
+export async function searchTitlePage(
+  type: MediaType,
+  query: string,
+  year: number | undefined,
+  page: number
+): Promise<TmdbPage<TmdbListItem>> {
+  const params: Record<string, string> = { query, page: String(page) };
+  if (year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = String(year);
+  return tmdbGet<TmdbPage<TmdbListItem>>(`/search/${type}`, params);
+}
+
+/** Plateformes où voir un film ou une série, pour tous les pays. */
+export async function getWatchProviders(type: MediaType, tmdbId: number): Promise<TmdbWatchProviders> {
+  return tmdbGet<TmdbWatchProviders>(`/${type}/${tmdbId}/watch/providers`);
+}
+
+/** Genres TMDB des films ou des séries (les deux listes diffèrent : « Action & Adventure » côté séries). */
+export async function getGenres(type: MediaType): Promise<Array<{ id: number; name: string }>> {
+  const data = await tmdbGet<{ genres: Array<{ id: number; name: string }> }>(`/genre/${type}/list`);
+  return data.genres ?? [];
+}
+
+/** Id TMDB de la personne la plus connue portant ce nom, ou null si personne. */
+export async function findPersonId(name: string): Promise<number | null> {
+  const data = await tmdbGet<{ results: Array<{ id: number }> }>("/search/person", { query: name });
+  return data.results?.[0]?.id ?? null; // TMDB trie par popularité
+}
+
+/** Ids TMDB des films RÉALISÉS par cette personne (with_crew compte aussi la production, l'écriture…). */
+export async function getDirectedMovieIds(personId: number): Promise<Set<number>> {
+  const data = await tmdbGet<{ crew: Array<{ id: number; job: string }> }>(`/person/${personId}/movie_credits`);
+  return new Set((data.crew ?? []).filter((member) => member.job === "Director").map((member) => member.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -214,8 +363,32 @@ export function sagaOf(details: TmdbMovieDetails): MovieImport["saga"] {
   return {
     tmdbId: collection.id,
     name: collection.name,
-    posterUrl: collection.poster_path ? POSTER_BASE_URL + collection.poster_path : null,
+    posterUrl: posterUrlOf(collection.poster_path),
   };
+}
+
+/** Le film est-il inclus dans l'abonnement Prime Video dans ce pays ? */
+export function isOnPrimeVideo(providers: TmdbWatchProviders, region: string = WATCH_REGION): boolean {
+  const flatrate = providers.results?.[region]?.flatrate ?? [];
+  return flatrate.some((provider) => PRIME_VIDEO_PROVIDER_IDS.includes(provider.provider_id));
+}
+
+/**
+ * Avec un titre, TMDB ne filtre que l'année exacte : la période et les genres
+ * sont vérifiés ici, sur les résultats de la recherche.
+ */
+export function matchesFilters(item: TmdbListItem, filters: Pick<PrimeVideoFilters, "yearFrom" | "yearTo" | "genreIds">): boolean {
+  const year = yearOf(item.release_date ?? item.first_air_date);
+  if ((filters.yearFrom || filters.yearTo) && year === null) return false;
+  if (filters.yearFrom && year !== null && year < filters.yearFrom) return false;
+  if (filters.yearTo && year !== null && year > filters.yearTo) return false;
+  const genreIds = item.genre_ids ?? [];
+  return filters.genreIds.every((id) => genreIds.includes(id));
+}
+
+/** "/abc.jpg" → URL complète de l'affiche ; null si TMDB n'en a pas. */
+export function posterUrlOf(posterPath: string | null | undefined): string | null {
+  return posterPath ? POSTER_BASE_URL + posterPath : null;
 }
 
 /**
@@ -302,7 +475,7 @@ export function toMovieImport(details: TmdbMovieDetails, castLimit: number): Mov
     runtime: details.runtime && details.runtime > 0 ? details.runtime : null,
     certification: certificationOf(details),
     synopsis: details.overview || null,
-    posterUrl: details.poster_path ? POSTER_BASE_URL + details.poster_path : null,
+    posterUrl: posterUrlOf(details.poster_path),
     genres: details.genres.map((genre) => ({ tmdbId: genre.id, name: genre.name })),
     saga: sagaOf(details),
     studios: studiosOf(details),
