@@ -5,6 +5,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  certificationOf,
   directorsMatch,
   frenchCertificationOf,
   normalizeName,
@@ -91,6 +92,39 @@ describe("frenchCertificationOf", () => {
 
   it("pas de sortie française → null", () => {
     assert.equal(frenchCertificationOf({ ...alien3, release_dates: { results: [] } }), null);
+  });
+});
+
+describe("certificationOf", () => {
+  const withReleases = (byCountry: Record<string, string[]>): TmdbMovieDetails => ({
+    ...alien3,
+    release_dates: {
+      results: Object.entries(byCountry).map(([country, notes]) => ({
+        iso_3166_1: country,
+        release_dates: notes.map((certification) => ({ certification })),
+      })),
+    },
+  });
+
+  it("Alien : la France (12) est corrigée par la médiane des pays → 16", () => {
+    assert.equal(certificationOf(withReleases({ FR: ["12"], DE: ["16"], GB: ["18"], NL: ["16"] })), "16");
+  });
+
+  it("une note isolée trop haute ne l'emporte pas", () => {
+    assert.equal(certificationOf(withReleases({ FR: ["18"], DE: ["16"], GB: ["15"], NL: ["16"] })), "16");
+  });
+
+  it("traduit les échelles étrangères (BBFC 15 → 16, FSK 6 → TP)", () => {
+    assert.equal(certificationOf(withReleases({ GB: ["15"] })), "16");
+    assert.equal(certificationOf(withReleases({ DE: ["6"] })), "TP");
+  });
+
+  it("nombre pair de pays → la plus stricte des deux du milieu", () => {
+    assert.equal(certificationOf(withReleases({ FR: ["TP"], DE: ["12"] })), "12");
+  });
+
+  it("ignore les pays non suivis (US) et sans note → null", () => {
+    assert.equal(certificationOf(withReleases({ US: ["R"] })), null);
   });
 });
 

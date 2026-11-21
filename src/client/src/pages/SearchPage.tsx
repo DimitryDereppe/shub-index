@@ -81,7 +81,7 @@ export function SearchPage() {
       <form key={searchParams.toString()} onSubmit={handleSubmit} className="search-form" role="search">
         <div className="field field--wide">
           <label htmlFor="q">Titre, saga ou studio</label>
-          <input id="q" name="q" type="search" defaultValue="" placeholder="ex. alien, marvel, star wars" />
+          <input id="q" name="q" type="search" defaultValue="" placeholder="ex. deadpool, star wars, marvel" />
         </div>
 
         <PersonInput id="director" name="director" label="Réalisateur" role="director" defaultValue="" />

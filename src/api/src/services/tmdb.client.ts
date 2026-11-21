@@ -145,23 +145,56 @@ export function directorsOf(details: TmdbMovieDetails): Array<{ tmdbId: number; 
 }
 
 /**
- * Classification française : "U" → "TP" (comme organize.py) ; hors liste → null.
- * Un film a souvent plusieurs sorties françaises (cinéma, DVD, ressortie...) :
+ * Notes de chaque pays traduites en classification française.
+ * La France seule est trop laxiste (Alien, Matrix, Terminator en -12 ou TP) :
+ * on la compare à l'Allemagne (FSK), au Royaume-Uni (BBFC) et aux Pays-Bas (Kijkwijzer).
+ */
+const COUNTRY_SCALES: Record<string, Record<string, Certification>> = {
+  FR: { U: "TP", TP: "TP", "10": "10", "12": "12", "16": "16", "18": "18" },
+  DE: { "0": "TP", "6": "TP", "12": "12", "16": "16", "18": "18" },
+  GB: { U: "TP", PG: "TP", "12A": "12", "12": "12", "15": "16", "18": "18", R18: "18" },
+  NL: { AL: "TP", "6": "TP", "9": "10", "12": "12", "14": "16", "16": "16", "18": "18" },
+};
+
+/**
+ * Classification d'un pays, traduite à l'échelle française ; null si le pays n'a pas de note connue.
+ * Un film a souvent plusieurs sorties (cinéma, DVD, ressortie...) :
  * on garde la note la PLUS STRICTE, pas la première trouvée.
  * CERTIFICATIONS est rangé du plus permissif au plus strict → sa position sert de niveau.
  */
-export function frenchCertificationOf(details: TmdbMovieDetails): Certification | null {
-  const france = details.release_dates?.results.find((entry) => entry.iso_3166_1 === "FR");
+export function countryCertificationOf(details: TmdbMovieDetails, country: string): Certification | null {
+  const scale = COUNTRY_SCALES[country];
+  const entry = details.release_dates?.results.find((result) => result.iso_3166_1 === country);
   let strictest: Certification | null = null;
-  for (const release of france?.release_dates ?? []) {
-    const value = release.certification.trim() === "U" ? "TP" : release.certification.trim();
-    if (!(CERTIFICATIONS as readonly string[]).includes(value)) continue;
-    const certification = value as Certification;
+  for (const release of entry?.release_dates ?? []) {
+    const certification = scale?.[release.certification.trim()];
+    if (!certification) continue;
     if (strictest === null || CERTIFICATIONS.indexOf(certification) > CERTIFICATIONS.indexOf(strictest)) {
       strictest = certification;
     }
   }
   return strictest;
+}
+
+/** Classification française seule (la plus stricte des sorties françaises). */
+export function frenchCertificationOf(details: TmdbMovieDetails): Certification | null {
+  return countryCertificationOf(details, "FR");
+}
+
+/**
+ * Classification retenue pour le catalogue : médiane des pays connus (FR, DE, GB, NL).
+ * Avec un nombre pair de pays, on prend la plus stricte des deux du milieu.
+ * La médiane écarte une note isolée trop basse (France) ou trop haute (une sortie DVD).
+ * Ex. Alien : FR 12, DE 16, GB 18, NL 16 → 16.
+ */
+export function certificationOf(details: TmdbMovieDetails): Certification | null {
+  const levels = Object.keys(COUNTRY_SCALES)
+    .map((country) => countryCertificationOf(details, country))
+    .filter((certification) => certification !== null)
+    .map((certification) => CERTIFICATIONS.indexOf(certification))
+    .sort((a, b) => a - b);
+  if (levels.length === 0) return null;
+  return CERTIFICATIONS[levels[Math.floor(levels.length / 2)]];
 }
 
 /** Studios (sociétés de production TMDB) du film, sans doublon ; [] si TMDB n'en donne pas. */
@@ -267,7 +300,7 @@ export function toMovieImport(details: TmdbMovieDetails, castLimit: number): Mov
     originalTitle: details.original_title && details.original_title !== details.title ? details.original_title : null,
     releaseYear: yearOf(details.release_date),
     runtime: details.runtime && details.runtime > 0 ? details.runtime : null,
-    certification: frenchCertificationOf(details),
+    certification: certificationOf(details),
     synopsis: details.overview || null,
     posterUrl: details.poster_path ? POSTER_BASE_URL + details.poster_path : null,
     genres: details.genres.map((genre) => ({ tmdbId: genre.id, name: genre.name })),

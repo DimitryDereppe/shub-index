@@ -15,7 +15,7 @@ import pool from "./models/database-client.ts";
 import moviesDataMapper from "./models/movies.datamapper.ts";
 import sagasDataMapper from "./models/sagas.datamapper.ts";
 import studiosDataMapper from "./models/studios.datamapper.ts";
-import { frenchCertificationOf, getMovieWithCredits, sagaOf, studiosOf } from "./services/tmdb.client.ts";
+import { certificationOf, getMovieWithCredits, sagaOf, studiosOf } from "./services/tmdb.client.ts";
 
 const apply = process.argv.includes("--apply");
 console.log(apply ? "✍️  Mode ÉCRITURE" : "👀 Mode SIMULATION (ajouter -- --apply pour écrire)");
@@ -34,7 +34,7 @@ try {
     try {
       const details = await getMovieWithCredits(movie.tmdbId);
       const saga = sagaOf(details);
-      const certification = movie.editedByAdmin ? movie.certification : frenchCertificationOf(details);
+      const certification = movie.editedByAdmin ? movie.certification : certificationOf(details);
 
       if (certification !== movie.certification) {
         certificationChanges++;
